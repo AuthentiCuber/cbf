@@ -47,20 +47,21 @@ TokenType makeToken(char c) {
     }
 }
 
-void tokenise(char* input, int inpLen, TokenType *resultBuf) {
+TokenType *tokenise(char* input, int inpLen) {
+    TokenType *tokBuf = malloc(inpLen * sizeof(TokenType));
     for (int i = 0; i < inpLen; i++) {
-        resultBuf[i] = makeToken(input[i]);
+        tokBuf[i] = makeToken(input[i]);
     }
+    return tokBuf;
 }
 
 int main(int argc, char **argv) {
     int inpLen = 8;
-    TokenType *tokBuf = malloc(inpLen * sizeof(TokenType));
     char *inp = "><+-[],.";
-    tokenise(inp, inpLen, tokBuf);
+    TokenType *toks = tokenise(inp, inpLen);
 
     for (int i = 0; i < inpLen; i++) {
-        int tok = tokBuf[i];
+        int tok = toks[i];
         printf("%d\n", tok);
     }
     return 0;
