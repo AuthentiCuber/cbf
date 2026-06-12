@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef enum {
     DP_INC,
@@ -176,11 +177,10 @@ char *run(Commands *cmds) {
 }
 
 int main(int argc, char **argv) {
-    size_t inpLen = 123;
     char *inp = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++"
                 "this is a comment"
                 "++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
-    Tokens *toks = tokenise(inp, inpLen);
+    Tokens *toks = tokenise(inp, strlen(inp));
     // for (size_t i = 0; i < toks->length; i++) {
     //     printf("%d\n", toks->list[i]);
     // }
