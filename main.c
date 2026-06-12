@@ -18,6 +18,11 @@ typedef struct {
     size_t param;
 } Command;
 
+typedef struct {
+    Command *list;
+    size_t length;
+} Commands;
+
 TokenType makeToken(char c) {
     switch (c) {
     case '>':
@@ -57,37 +62,37 @@ TokenType *tokenise(char *input, size_t inpLen) {
     return tokBuf;
 }
 
-Command *parse(TokenType *toks, size_t numToks) {
-    Command *cmds = calloc(numToks, sizeof(Command));
+Commands *parse(TokenType *toks, size_t numToks) {
+    Commands *cmds = malloc(sizeof(Commands));
+    cmds->list = calloc(numToks, sizeof(Command));
     size_t cmdIndex = 0;
-    size_t paramCounter = 0;
+    size_t paramCounter = 1;
     for (size_t i = 0; i < numToks; i++) {
         TokenType tok = toks[i];
         if (tok == JZ || tok == JNZ) {
-            cmds[cmdIndex] = (Command){tok, 0};
-            cmdIndex++;
-            paramCounter = 0;
+            cmds->list[cmdIndex++] = (Command){tok, 0};
+            paramCounter = 1;
+        } else if (i + 1 < numToks && toks[i + 1] == tok) {
+            paramCounter++;
         } else {
-            if (toks[i + 1] == tok) {
-                paramCounter++;
-            } else {
-                cmds[cmdIndex] = (Command){tok, paramCounter};
-                cmdIndex++;
-                paramCounter = 0;
-            }
+            cmds->list[cmdIndex++] = (Command){tok, paramCounter};
+            paramCounter = 1;
         }
     }
+
+    cmds->length = cmdIndex;
     return cmds;
 }
 
 int main(int argc, char **argv) {
-    size_t inpLen = 8;
-    char *inp = "><+-[],.";
+    size_t inpLen = 24;
+    char *inp = "++++++++[>+++++++++<-]>.";
     TokenType *toks = tokenise(inp, inpLen);
-
-    for (size_t i = 0; i < inpLen; i++) {
-        int tok = toks[i];
-        printf("%d\n", tok);
+    Commands *cmds = parse(toks, inpLen);
+    for (size_t i = 0; i < cmds->length; i++) {
+        printf("%d: %zu\n", cmds->list[i].tokType, cmds->list[i].param);
+        // printf("%d\n", toks[i]);
     }
+
     return EXIT_SUCCESS;
 }
