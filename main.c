@@ -103,6 +103,42 @@ Commands *parse(TokenType *toks, size_t numToks) {
     return cmds;
 }
 
+char *run(Commands *cmds) {
+    char *memory = malloc(30000);
+    int dataPtr = 0;
+    size_t cmdPtr = 0;
+    char *output = malloc(1000 * 1000);
+    while (cmdPtr < cmds->length) {
+        const Command currCmd = cmds->list[cmdPtr];
+        switch (currCmd.tokType) {
+        case DP_INC:
+            dataPtr += currCmd.param;
+            break;
+        case DP_DEC:
+            dataPtr -= currCmd.param;
+            break;
+        case DATA_INC:
+            memory[dataPtr] += currCmd.param;
+            break;
+        case DATA_DEC:
+            memory[dataPtr] -= currCmd.param;
+            break;
+        case INPUT:
+            break;
+        case OUTPUT:
+            break;
+        case JZ:
+            break;
+        case JNZ:
+            break;
+        }
+
+        cmdPtr++;
+    }
+    free(memory);
+    return output;
+}
+
 int main(int argc, char **argv) {
     size_t inpLen = 24;
     char *inp = "++++++++[>+++++++++<-]>.";
