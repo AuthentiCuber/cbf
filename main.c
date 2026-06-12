@@ -15,7 +15,7 @@ typedef enum {
 
 typedef struct {
     TokenType tokType;
-    int param;
+    size_t param;
 } Command;
 
 TokenType makeToken(char c) {
@@ -50,11 +50,34 @@ TokenType makeToken(char c) {
 }
 
 TokenType *tokenise(char *input, size_t inpLen) {
-    TokenType *tokBuf = malloc(inpLen * sizeof(TokenType));
+    TokenType *tokBuf = calloc(inpLen, sizeof(TokenType));
     for (size_t i = 0; i < inpLen; i++) {
         tokBuf[i] = makeToken(input[i]);
     }
     return tokBuf;
+}
+
+Command *parse(TokenType *toks, size_t numToks) {
+    Command *cmds = calloc(numToks, sizeof(Command));
+    size_t cmdIndex = 0;
+    size_t paramCounter = 0;
+    for (size_t i = 0; i < numToks; i++) {
+        TokenType tok = toks[i];
+        if (tok == JZ || tok == JNZ) {
+            cmds[cmdIndex] = (Command){tok, 0};
+            cmdIndex++;
+            paramCounter = 0;
+        } else {
+            if (toks[i + 1] == tok) {
+                paramCounter++;
+            } else {
+                cmds[cmdIndex] = (Command){tok, paramCounter};
+                cmdIndex++;
+                paramCounter = 0;
+            }
+        }
+    }
+    return cmds;
 }
 
 int main(int argc, char **argv) {
