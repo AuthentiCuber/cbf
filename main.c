@@ -14,6 +14,11 @@ typedef enum {
 } TokenType;
 
 typedef struct {
+    TokenType *list;
+    size_t length;
+} Tokens;
+
+typedef struct {
     TokenType tokType;
     size_t param;
 } Command;
@@ -54,25 +59,43 @@ TokenType makeToken(char c) {
     }
 }
 
-TokenType *tokenise(char *input, size_t inpLen) {
-    TokenType *tokBuf = calloc(inpLen, sizeof(TokenType));
-    for (size_t i = 0; i < inpLen; i++) {
-        tokBuf[i] = makeToken(input[i]);
+int isValidBF(char c) {
+    const char *bfChars = "><+-[],.";
+    for (short i = 0; i < 8; i++) {
+        if (c == bfChars[i]) {
+            return 1;
+        }
     }
-    return tokBuf;
+    return 0;
 }
 
-Commands *parse(TokenType *toks, size_t numToks) {
+Tokens *tokenise(char *input, size_t inpLen) {
+    Tokens *toks = malloc(sizeof(Tokens));
+    toks->list = calloc(inpLen, sizeof(TokenType));
+    size_t tokBufHead = 0;
+    for (size_t i = 0; i < inpLen; i++) {
+        char c = input[i];
+        if (!isValidBF(c)) {
+            continue;
+        }
+
+        toks->list[tokBufHead++] = makeToken(c);
+    }
+    toks->length = tokBufHead;
+    return toks;
+}
+
+Commands *parse(Tokens *toks) {
     Commands *cmds = malloc(sizeof(Commands));
-    cmds->list = calloc(numToks, sizeof(Command));
+    cmds->list = calloc(toks->length, sizeof(Command));
     size_t cmdIndex = 0;
     size_t paramCounter = 1;
-    for (size_t i = 0; i < numToks; i++) {
-        TokenType tok = toks[i];
+    for (size_t i = 0; i < toks->length; i++) {
+        TokenType tok = toks->list[i];
         if (tok == JZ || tok == JNZ) {
             cmds->list[cmdIndex++] = (Command){tok, 0};
             paramCounter = 1;
-        } else if (i + 1 < numToks && toks[i + 1] == tok) {
+        } else if (i + 1 < toks->length && toks->list[i + 1] == tok) {
             paramCounter++;
         } else {
             cmds->list[cmdIndex++] = (Command){tok, paramCounter};
@@ -153,11 +176,18 @@ char *run(Commands *cmds) {
 }
 
 int main(int argc, char **argv) {
-    size_t inpLen = 106;
+    size_t inpLen = 123;
     char *inp = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++"
+                "this is a comment"
                 "++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
-    TokenType *toks = tokenise(inp, inpLen);
-    Commands *cmds = parse(toks, inpLen);
+    Tokens *toks = tokenise(inp, inpLen);
+    // for (size_t i = 0; i < toks->length; i++) {
+    //     printf("%d\n", toks->list[i]);
+    // }
+    Commands *cmds = parse(toks);
+    // for (size_t i = 0; i < cmds->length; i++) {
+    //     printf("%d: %zu\n", cmds->list[i].tokType, cmds->list[i].param);
+    // }
     const char *output = run(cmds);
     printf("%s", output);
 
