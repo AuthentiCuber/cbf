@@ -108,6 +108,7 @@ char *run(Commands *cmds) {
     int dataPtr = 0;
     size_t cmdPtr = 0;
     char *output = malloc(1000 * 1000);
+    size_t outputHead = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
@@ -124,30 +125,41 @@ char *run(Commands *cmds) {
             memory[dataPtr] -= currCmd.param;
             break;
         case INPUT:
+            memory[dataPtr] = (char)getchar();
             break;
         case OUTPUT:
+            for (size_t i = 0; i < currCmd.param; i++) {
+                output[outputHead++] = memory[dataPtr];
+            }
             break;
         case JZ:
+            if (memory[dataPtr] == 0) {
+                cmdPtr = currCmd.param;
+            }
             break;
         case JNZ:
+            if (memory[dataPtr] != 0) {
+                cmdPtr = currCmd.param;
+            }
             break;
         }
 
         cmdPtr++;
     }
     free(memory);
+
+    output[outputHead] = 0;
     return output;
 }
 
 int main(int argc, char **argv) {
-    size_t inpLen = 24;
-    char *inp = "++++++++[>+++++++++<-]>.";
+    size_t inpLen = 106;
+    char *inp = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++"
+                "++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
     TokenType *toks = tokenise(inp, inpLen);
     Commands *cmds = parse(toks, inpLen);
-    for (size_t i = 0; i < cmds->length; i++) {
-        printf("%d: %zu\n", cmds->list[i].tokType, cmds->list[i].param);
-        // printf("%d\n", toks[i]);
-    }
+    const char *output = run(cmds);
+    printf("%s", output);
 
     return EXIT_SUCCESS;
 }
