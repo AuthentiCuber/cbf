@@ -79,8 +79,27 @@ Commands *parse(TokenType *toks, size_t numToks) {
             paramCounter = 1;
         }
     }
-
     cmds->length = cmdIndex;
+
+    // jump location resolution
+    size_t *jumpIndexStack = calloc(cmds->length, sizeof(size_t));
+    size_t jumpIndexStackHead = 0;
+    for (size_t i = 0; i < cmds->length; i++) {
+        switch (cmds->list[i].tokType) {
+        case JZ:
+            jumpIndexStack[jumpIndexStackHead++] = i;
+            break;
+        case JNZ:
+            size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
+            cmds->list[i].param = jumpPos;
+            cmds->list[jumpPos].param = i;
+            break;
+        default:
+            break;
+        }
+    }
+    free(jumpIndexStack);
+
     return cmds;
 }
 
