@@ -178,17 +178,54 @@ char *run(Commands *cmds) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "please provide an input file!");
+        fprintf(stderr, "please provide an input file!\n");
         return EXIT_FAILURE;
     }
-    FILE *inpFile = fopen(argv[1], "r");
-    if (inpFile == NULL) {
-        fprintf(stderr, "failed to open file");
-        return EXIT_FAILURE;
-    }
-    char *inp = malloc(1000 * 1000);
 
-    fclose(inpFile);
+    FILE *inpFile = fopen(argv[1], "r");
+
+    if (inpFile == NULL) {
+        perror("failed to open file");
+        return EXIT_FAILURE;
+    }
+    if (fseek(inpFile, 0, SEEK_END) < 0) {
+        perror("failed to seek end");
+        return EXIT_FAILURE;
+    }
+
+    long fileLength = ftell(inpFile);
+
+    if (fileLength < 0) {
+        perror("ftell failed");
+        return EXIT_FAILURE;
+    }
+    if (fseek(inpFile, 0, SEEK_SET) < 0) {
+        perror("faled to seek set");
+        return EXIT_FAILURE;
+    }
+
+    char *inp = malloc(fileLength);
+
+    if (inp == NULL) {
+        perror("failed to allocate input buffer");
+        return EXIT_FAILURE;
+    }
+    if (fread(inp, 1, fileLength, inpFile) < fileLength) {
+        fprintf(stderr, "failed to read file: %s\n", strerror(ferror(inpFile)));
+        return EXIT_FAILURE;
+    }
+    if (inp == NULL) {
+        perror("filling input buffer failed");
+        return EXIT_FAILURE;
+    }
+    // null terminate
+    inp[fileLength] = 0;
+
+    if (fclose(inpFile) == EOF) {
+        perror("failed to close file");
+        return EXIT_FAILURE;
+    }
+
     Tokens *toks = tokenise(inp, strlen(inp));
     Commands *cmds = parse(toks);
     const char *output = run(cmds);
