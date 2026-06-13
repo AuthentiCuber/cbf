@@ -177,17 +177,20 @@ char *run(Commands *cmds) {
 }
 
 int main(int argc, char **argv) {
-    char *inp = "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++"
-                "this is a comment"
-                "++..+++.>>.<-.<.+++.------.--------.>>+.>++.";
+    if (argc < 2) {
+        fprintf(stderr, "please provide an input file!");
+        return EXIT_FAILURE;
+    }
+    FILE *inpFile = fopen(argv[1], "r");
+    if (inpFile == NULL) {
+        fprintf(stderr, "failed to open file");
+        return EXIT_FAILURE;
+    }
+    char *inp = malloc(1000 * 1000);
+
+    fclose(inpFile);
     Tokens *toks = tokenise(inp, strlen(inp));
-    // for (size_t i = 0; i < toks->length; i++) {
-    //     printf("%d\n", toks->list[i]);
-    // }
     Commands *cmds = parse(toks);
-    // for (size_t i = 0; i < cmds->length; i++) {
-    //     printf("%d: %zu\n", cmds->list[i].tokType, cmds->list[i].param);
-    // }
     const char *output = run(cmds);
     printf("%s", output);
 
