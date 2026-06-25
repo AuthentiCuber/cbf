@@ -114,6 +114,12 @@ Commands *parse(Tokens *toks) {
             jumpIndexStack[jumpIndexStackHead++] = i;
             break;
         case JNZ:
+            if (jumpIndexStackHead == 0) {
+                fprintf(stderr, "One or more closing brackets are missing an "
+                                "opening bracket!\n");
+                exit(EXIT_FAILURE);
+            }
+
             size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
             cmds->list[i].param = jumpPos;
             cmds->list[jumpPos].param = i;
@@ -121,6 +127,12 @@ Commands *parse(Tokens *toks) {
         default:
             break;
         }
+    }
+    if (jumpIndexStackHead != 0) {
+        fprintf(
+            stderr,
+            "One or more opening brackets are missing a closing bracket!\n");
+        exit(EXIT_FAILURE);
     }
     free(jumpIndexStack);
 
