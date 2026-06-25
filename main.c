@@ -188,55 +188,60 @@ char *run(Commands *cmds) {
     return output;
 }
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        fprintf(stderr, "please provide an input file!\n");
-        return EXIT_FAILURE;
-    }
+char *readFile(char *filePath) {
+    FILE *file = fopen(filePath, "r");
 
-    FILE *inpFile = fopen(argv[1], "r");
-
-    if (inpFile == NULL) {
+    if (file == NULL) {
         perror("failed to open file");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
-    if (fseek(inpFile, 0, SEEK_END) < 0) {
+    if (fseek(file, 0, SEEK_END) < 0) {
         perror("failed to seek end");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
-    long fileLength = ftell(inpFile);
+    long fileLength = ftell(file);
 
     if (fileLength < 0) {
         perror("ftell failed");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
-    if (fseek(inpFile, 0, SEEK_SET) < 0) {
+    if (fseek(file, 0, SEEK_SET) < 0) {
         perror("faled to seek set");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
 
-    char *inp = malloc(fileLength);
+    char *data = malloc(fileLength);
 
-    if (inp == NULL) {
+    if (data == NULL) {
         perror("failed to allocate input buffer");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
-    if (fread(inp, 1, fileLength, inpFile) < fileLength) {
-        fprintf(stderr, "failed to read file: %s\n", strerror(ferror(inpFile)));
-        return EXIT_FAILURE;
+    if (fread(data, 1, fileLength, file) < fileLength) {
+        fprintf(stderr, "failed to read file: %s\n", strerror(ferror(file)));
+        exit(EXIT_FAILURE);
     }
-    if (inp == NULL) {
+    if (data == NULL) {
         perror("filling input buffer failed");
-        return EXIT_FAILURE;
+        exit(EXIT_FAILURE);
     }
     // null terminate
-    inp[fileLength] = 0;
+    data[fileLength] = 0;
 
-    if (fclose(inpFile) == EOF) {
+    if (fclose(file) == EOF) {
         perror("failed to close file");
+        exit(EXIT_FAILURE);
+    }
+
+    return data;
+}
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        fprintf(stderr, "please provide an input!\n");
         return EXIT_FAILURE;
     }
+
+    char *inp = readFile(argv[1]);
 
     Tokens *toks = tokenise(inp, strlen(inp));
     Commands *cmds = parse(toks);
