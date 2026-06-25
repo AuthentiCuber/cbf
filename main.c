@@ -241,7 +241,12 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    char *inp = readFile(argv[1]);
+    char *inp;
+    if (strcmp(argv[1], "--literal") == 0 || strcmp(argv[1], "-l") == 0) {
+        inp = argv[2];
+    } else {
+        inp = readFile(argv[1]);
+    }
 
     Tokens *toks = tokenise(inp, strlen(inp));
     Commands *cmds = parse(toks);
