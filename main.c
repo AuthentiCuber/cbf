@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -188,53 +189,49 @@ char *run(Commands *cmds) {
     return output;
 }
 
-char *readFile(char *filePath) {
+int readFile(char *filePath, char **out) {
     FILE *file = fopen(filePath, "r");
 
     if (file == NULL) {
-        perror("failed to open file");
-        exit(EXIT_FAILURE);
+        return errno;
     }
     if (fseek(file, 0, SEEK_END) < 0) {
-        perror("failed to seek end");
-        exit(EXIT_FAILURE);
+        return errno;
     }
 
     long fileLength = ftell(file);
 
-    if (fileLength < 0) {
-        perror("ftell failed");
-        exit(EXIT_FAILURE);
+    if (fileLength <= 0) {
+        return errno;
     }
     if (fseek(file, 0, SEEK_SET) < 0) {
-        perror("faled to seek set");
-        exit(EXIT_FAILURE);
+        return errno;
     }
 
     char *data = malloc(fileLength);
 
     if (data == NULL) {
-        perror("failed to allocate input buffer");
-        exit(EXIT_FAILURE);
+        return errno;
     }
     if (fread(data, 1, fileLength, file) < fileLength) {
-        fprintf(stderr, "failed to read file: %s\n", strerror(ferror(file)));
-        exit(EXIT_FAILURE);
+        return ferror(file);
     }
     if (data == NULL) {
         perror("filling input buffer failed");
-        exit(EXIT_FAILURE);
+        return 1;
     }
     // null terminate
     data[fileLength] = 0;
 
     if (fclose(file) == EOF) {
-        perror("failed to close file");
-        exit(EXIT_FAILURE);
+        return errno;
     }
 
-    return data;
+    *out = data;
+
+    return 0;
 }
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr, "please provide an input!\n");
@@ -245,7 +242,12 @@ int main(int argc, char **argv) {
     if (strcmp(argv[1], "--literal") == 0 || strcmp(argv[1], "-l") == 0) {
         inp = argv[2];
     } else {
-        inp = readFile(argv[1]);
+        int readErr = readFile(argv[1], &inp);
+        if (readErr != 0) {
+            fprintf(stderr, "failed to read file %s: %s\n", argv[1],
+                    strerror(readErr));
+            return EXIT_FAILURE;
+        }
     }
 
     Tokens *toks = tokenise(inp, strlen(inp));
