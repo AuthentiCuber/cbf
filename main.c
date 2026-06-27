@@ -196,7 +196,7 @@ int readFile(char *filePath, char **out) {
         return errno;
     }
 
-    long fileLength = ftell(file);
+    unsigned long fileLength = (unsigned long)ftell(file);
 
     if (fileLength <= 0) {
         return errno;
