@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define BFCHARS "><+-[],."
+
 typedef enum {
     DP_INC,
     DP_DEC,
@@ -16,8 +18,8 @@ typedef enum {
 } TokenType;
 
 typedef struct {
-    TokenType *list;
     size_t length;
+    TokenType list[];
 } Tokens;
 
 typedef struct {
@@ -26,8 +28,8 @@ typedef struct {
 } Command;
 
 typedef struct {
-    Command *list;
     size_t length;
+    Command list[];
 } Commands;
 
 TokenType makeToken(char c) {
@@ -62,9 +64,8 @@ TokenType makeToken(char c) {
 }
 
 int isValidBF(char c) {
-    const char *bfChars = "><+-[],.";
     for (short i = 0; i < 8; i++) {
-        if (c == bfChars[i]) {
+        if (c == BFCHARS[i]) {
             return 1;
         }
     }
@@ -72,8 +73,7 @@ int isValidBF(char c) {
 }
 
 Tokens *tokenise(char *input, size_t inpLen) {
-    Tokens *toks = malloc(sizeof(Tokens));
-    toks->list = calloc(inpLen, sizeof(TokenType));
+    Tokens *toks = malloc(sizeof(Tokens) + sizeof(TokenType) * inpLen);
     size_t tokBufHead = 0;
     for (size_t i = 0; i < inpLen; i++) {
         char c = input[i];
@@ -88,8 +88,7 @@ Tokens *tokenise(char *input, size_t inpLen) {
 }
 
 Commands *parse(Tokens *toks) {
-    Commands *cmds = malloc(sizeof(Commands));
-    cmds->list = calloc(toks->length, sizeof(Command));
+    Commands *cmds = malloc(sizeof(Commands) + sizeof(Command) * toks->length);
     size_t cmdIndex = 0;
     size_t paramCounter = 1;
     for (size_t i = 0; i < toks->length; i++) {
@@ -107,7 +106,7 @@ Commands *parse(Tokens *toks) {
     cmds->length = cmdIndex;
 
     // jump location resolution
-    size_t *jumpIndexStack = calloc(cmds->length, sizeof(size_t));
+    size_t jumpIndexStack[cmds->length * sizeof(size_t)];
     size_t jumpIndexStackHead = 0;
     for (size_t i = 0; i < cmds->length; i++) {
         switch (cmds->list[i].tokType) {
@@ -135,13 +134,12 @@ Commands *parse(Tokens *toks) {
             "One or more opening brackets are missing a closing bracket!\n");
         exit(EXIT_FAILURE);
     }
-    free(jumpIndexStack);
 
     return cmds;
 }
 
 char *run(Commands *cmds) {
-    char *memory = malloc(30000);
+    char memory[30000] = {0};
     int dataPtr = 0;
     size_t cmdPtr = 0;
     char *output = malloc(1000 * 1000);
@@ -183,7 +181,6 @@ char *run(Commands *cmds) {
 
         cmdPtr++;
     }
-    free(memory);
 
     output[outputHead] = 0;
     return output;
