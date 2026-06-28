@@ -85,7 +85,6 @@ int parse(Tokens *toks, Commands *cmds) {
             paramCounter = 1;
         }
     }
-    printf("\n"); // DO NOT REMOVE: SOMEHOW DOESN'T WORK WITHOUT IT?!
 
     // jump location resolution
     size_t jumpIndexStack[cmds->length * sizeof(size_t)];
@@ -97,7 +96,7 @@ int parse(Tokens *toks, Commands *cmds) {
             break;
         case JNZ:
             if (jumpIndexStackHead == 0) {
-                return -(int)jumpIndexStack[0];
+                return -1 - (int)i;
             }
 
             size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
@@ -109,7 +108,7 @@ int parse(Tokens *toks, Commands *cmds) {
         }
     }
     if (jumpIndexStackHead != 0) {
-        return (int)jumpIndexStack[jumpIndexStackHead];
+        return (int)jumpIndexStack[--jumpIndexStackHead] + 1;
     }
 
     return 0;
@@ -261,15 +260,17 @@ int main(int argc, char **argv) {
 
         int parseErr = parse(toks, cmds);
 
-        if (parseErr > 0) {
-            fprintf(stderr, "Unbalanced closing bracket found!\n");
+        if (parseErr < 0) {
+            fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
+                    abs(parseErr + 1));
             return EXIT_FAILURE;
-        } else if (parseErr < 0) {
-            fprintf(stderr, "Unbalanced opening bracket found!\n");
+        } else if (parseErr > 0) {
+            fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
+                    parseErr - 1);
             return EXIT_FAILURE;
         }
 
-        // int runErr = run(cmds);
+        int runErr = run(cmds);
 
         return EXIT_SUCCESS;
     }
