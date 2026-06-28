@@ -7,9 +7,13 @@ Originally part of [brainfuckery](https://github.com/AuthentiCuber/brainfuckery)
 
 ### Building
 
-At this stage there are no dependencies or special flags needed, so just compile with your favorite compiler and flags e.g.
+Just compile with your favorite compiler and flags e.g.
 
     $ cc main.c -o cbf
+
+The only thing to note is that you can set a custom memory size with the MEM_SIZE macro:
+
+    $ cc -D MEM_SIZE=100000 main.c -o cbf
 
 ### Usage
 
@@ -17,13 +21,9 @@ A summary can be obtained with
 
     $ ./cbf --help
 
-Currently there are two modes, determined by the `--literal` (or `-l` for short) flag.
-When present, the following positional argument is treated as literal bf code and fed to the interpreter:
+A file containting brainfuck code can be run with the `run` subcommand:
 
-    $ ./cbf --literal "++++++++[>++++++++<-]>."
-    H
-
-Otherwise, the sole argument is a path to a `.bf` file which is read and executed.
-
-    $ ./cbf helloworld.bf
+    $ ./cbf run helloworld.bf
     Hello, World!
+
+Support is planned for and interactive repl with the `repl` subcommand, which is yet to be implemented.
