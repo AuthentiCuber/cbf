@@ -229,10 +229,26 @@ int readFile(char *filePath, char **out) {
     return 0;
 }
 
+#define HELP_TEXT                                                              \
+    "Usage: %s [OPTIONS] INPUT\n"                                              \
+    "Options:\n"                                                               \
+    "  --literal, -l  Treat INPUT as literal bf code\n"                        \
+    "  --help, -h     Print this help message\n"
+
+void showHelp(const char *progName) { fprintf(stderr, HELP_TEXT, progName); }
+
 int main(int argc, char **argv) {
+    const char *progName = argv[0];
+
     if (argc < 2) {
-        fprintf(stderr, "please provide an input!\n");
+        fprintf(stderr, "Please provide an input!\n\n");
+        showHelp(progName);
         return EXIT_FAILURE;
+    }
+
+    if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+        showHelp(progName);
+        return EXIT_SUCCESS;
     }
 
     char *inp;
