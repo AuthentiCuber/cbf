@@ -230,18 +230,20 @@ int readFile(char *filePath, char **out) {
 }
 
 #define HELP_TEXT                                                              \
-    "Usage: %s [OPTIONS] INPUT\n"                                              \
-    "Options:\n"                                                               \
-    "  --literal, -l  Treat INPUT as literal bf code\n"                        \
-    "  --help, -h     Print this help message\n"
+    "Usage:\n"                                                                 \
+    "  %s [-h | --help]  Print this help message\n"                            \
+    "  %s run <file>     Run a file containing bf code\n"                      \
+    "  %s repl           Run bf code interactively in a repl\n"
 
-void showHelp(const char *progName) { fprintf(stderr, HELP_TEXT, progName); }
+void showHelp(const char *progName) {
+    fprintf(stderr, HELP_TEXT, progName, progName, progName);
+}
 
 int main(int argc, char **argv) {
     const char *progName = argv[0];
 
     if (argc < 2) {
-        fprintf(stderr, "Please provide an input!\n\n");
+        fprintf(stderr, "Please provide argument(s)!\n\n");
         showHelp(progName);
         return EXIT_FAILURE;
     }
@@ -251,22 +253,36 @@ int main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 
-    char *inp;
-    if (strcmp(argv[1], "--literal") == 0 || strcmp(argv[1], "-l") == 0) {
-        inp = argv[2];
-    } else {
+    if (strcmp(argv[1], "repl") == 0) {
+        fprintf(stderr, "Not yet implemented!\n\n");
+        showHelp(progName);
+        return EXIT_FAILURE;
+    }
+
+    if (strcmp(argv[1], "run") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Please provide a file!\n\n");
+            showHelp(progName);
+            return EXIT_FAILURE;
+        }
+
+        char *inp;
         int readErr = readFile(argv[1], &inp);
         if (readErr != 0) {
             fprintf(stderr, "failed to read file %s: %s\n", argv[1],
                     strerror(readErr));
             return EXIT_FAILURE;
         }
+
+        Tokens *toks = tokenise(inp, strlen(inp));
+        Commands *cmds = parse(toks);
+        const char *output = run(cmds);
+        printf("%s", output);
+
+        return EXIT_SUCCESS;
     }
 
-    Tokens *toks = tokenise(inp, strlen(inp));
-    Commands *cmds = parse(toks);
-    const char *output = run(cmds);
-    printf("%s", output);
-
-    return EXIT_SUCCESS;
+    fprintf(stderr, "Provided arguments not recognised!\n\n");
+    showHelp(progName);
+    return EXIT_FAILURE;
 }
