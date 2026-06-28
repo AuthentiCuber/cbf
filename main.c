@@ -30,6 +30,10 @@ typedef struct {
     Command list[];
 } Commands;
 
+#ifndef MEM_SIZE
+#define MEM_SIZE 30000
+#endif // MEM_SIZE
+
 int makeToken(char c) {
     switch (c) {
     case '>':
@@ -115,7 +119,7 @@ int parse(Tokens *toks, Commands *cmds) {
 }
 
 int run(Commands *cmds) {
-    char memory[30000] = {0};
+    char memory[MEM_SIZE] = {0};
     int dataPtr = 0;
     size_t cmdPtr = 0;
     while (cmdPtr < cmds->length) {
@@ -123,9 +127,15 @@ int run(Commands *cmds) {
         switch (currCmd.tokType) {
         case DP_INC:
             dataPtr += currCmd.param;
+            if (dataPtr > MEM_SIZE) {
+                return 1;
+            }
             break;
         case DP_DEC:
             dataPtr -= currCmd.param;
+            if (dataPtr < 0) {
+                return -1;
+            }
             break;
         case DATA_INC:
             memory[dataPtr] += currCmd.param;
@@ -271,6 +281,11 @@ int main(int argc, char **argv) {
         }
 
         int runErr = run(cmds);
+
+        if (runErr != 0) {
+            fprintf(stderr, "Data pointer out of bounds!\n");
+            return EXIT_FAILURE;
+        }
 
         return EXIT_SUCCESS;
     }
