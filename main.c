@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BFCHARS "><+-[],."
-
 typedef enum {
     DP_INC,
     DP_DEC,
@@ -32,7 +30,7 @@ typedef struct {
     Command list[];
 } Commands;
 
-TokenType makeToken(char c) {
+int makeToken(char c) {
     switch (c) {
     case '>':
         return DP_INC;
@@ -59,51 +57,35 @@ TokenType makeToken(char c) {
         return INPUT;
         break;
     default:
-        exit(EXIT_FAILURE);
+        return -1;
     }
 }
 
-int isValidBF(char c) {
-    for (short i = 0; i < 8; i++) {
-        if (c == BFCHARS[i]) {
-            return 1;
+int tokenise(char *input, size_t inpLen, Tokens *toks) {
+    for (size_t i = 0; i < inpLen; i++) {
+        int tok = makeToken(input[i]);
+        if (tok >= 0) {
+            toks->list[toks->length++] = (TokenType)tok;
         }
     }
     return 0;
 }
 
-Tokens *tokenise(char *input, size_t inpLen) {
-    Tokens *toks = malloc(sizeof(Tokens) + sizeof(TokenType) * inpLen);
-    size_t tokBufHead = 0;
-    for (size_t i = 0; i < inpLen; i++) {
-        char c = input[i];
-        if (!isValidBF(c)) {
-            continue;
-        }
-
-        toks->list[tokBufHead++] = makeToken(c);
-    }
-    toks->length = tokBufHead;
-    return toks;
-}
-
-Commands *parse(Tokens *toks) {
-    Commands *cmds = malloc(sizeof(Commands) + sizeof(Command) * toks->length);
-    size_t cmdIndex = 0;
+int parse(Tokens *toks, Commands *cmds) {
     size_t paramCounter = 1;
     for (size_t i = 0; i < toks->length; i++) {
         TokenType tok = toks->list[i];
         if (tok == JZ || tok == JNZ) {
-            cmds->list[cmdIndex++] = (Command){tok, 0};
+            cmds->list[cmds->length++] = (Command){tok, 0};
             paramCounter = 1;
         } else if (i + 1 < toks->length && toks->list[i + 1] == tok) {
             paramCounter++;
         } else {
-            cmds->list[cmdIndex++] = (Command){tok, paramCounter};
+            cmds->list[cmds->length++] = (Command){tok, paramCounter};
             paramCounter = 1;
         }
     }
-    cmds->length = cmdIndex;
+    printf("\n"); // DO NOT REMOVE: SOMEHOW DOESN'T WORK WITHOUT IT?!
 
     // jump location resolution
     size_t jumpIndexStack[cmds->length * sizeof(size_t)];
@@ -115,9 +97,7 @@ Commands *parse(Tokens *toks) {
             break;
         case JNZ:
             if (jumpIndexStackHead == 0) {
-                fprintf(stderr, "One or more closing brackets are missing an "
-                                "opening bracket!\n");
-                exit(EXIT_FAILURE);
+                return -(int)jumpIndexStack[0];
             }
 
             size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
@@ -129,21 +109,16 @@ Commands *parse(Tokens *toks) {
         }
     }
     if (jumpIndexStackHead != 0) {
-        fprintf(
-            stderr,
-            "One or more opening brackets are missing a closing bracket!\n");
-        exit(EXIT_FAILURE);
+        return (int)jumpIndexStack[jumpIndexStackHead];
     }
 
-    return cmds;
+    return 0;
 }
 
-char *run(Commands *cmds) {
+int run(Commands *cmds) {
     char memory[30000] = {0};
     int dataPtr = 0;
     size_t cmdPtr = 0;
-    char *output = malloc(1000 * 1000);
-    size_t outputHead = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
@@ -164,7 +139,7 @@ char *run(Commands *cmds) {
             break;
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
-                output[outputHead++] = memory[dataPtr];
+                putchar(memory[dataPtr]);
             }
             break;
         case JZ:
@@ -182,11 +157,10 @@ char *run(Commands *cmds) {
         cmdPtr++;
     }
 
-    output[outputHead] = 0;
-    return output;
+    return 0;
 }
 
-int readFile(char *filePath, char **out) {
+int readFile(const char *filePath, char **out) {
     FILE *file = fopen(filePath, "r");
 
     if (file == NULL) {
@@ -266,18 +240,36 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
+        const char *fileName = argv[2];
         char *inp;
-        int readErr = readFile(argv[1], &inp);
+        int readErr = readFile(fileName, &inp);
         if (readErr != 0) {
-            fprintf(stderr, "failed to read file %s: %s\n", argv[1],
+            fprintf(stderr, "failed to read file %s: %s\n", fileName,
                     strerror(readErr));
             return EXIT_FAILURE;
         }
 
-        Tokens *toks = tokenise(inp, strlen(inp));
-        Commands *cmds = parse(toks);
-        const char *output = run(cmds);
-        printf("%s", output);
+        size_t inpLen = strlen(inp);
+        Tokens *toks = malloc(sizeof(Tokens) + inpLen * sizeof(TokenType));
+        toks->length = 0;
+
+        int tokErr = tokenise(inp, inpLen, toks);
+
+        Commands *cmds =
+            malloc(sizeof(Commands) + toks->length * sizeof(Command));
+        cmds->length = 0;
+
+        int parseErr = parse(toks, cmds);
+
+        if (parseErr > 0) {
+            fprintf(stderr, "Unbalanced closing bracket found!\n");
+            return EXIT_FAILURE;
+        } else if (parseErr < 0) {
+            fprintf(stderr, "Unbalanced opening bracket found!\n");
+            return EXIT_FAILURE;
+        }
+
+        // int runErr = run(cmds);
 
         return EXIT_SUCCESS;
     }
