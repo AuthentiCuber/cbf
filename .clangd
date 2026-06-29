@@ -1,2 +1,2 @@
 CompileFlags:
-  Add: [--std=c99, -Wall, -Wextra, -Wconversion]
+  Add: [--std=gnu99, -Wall, -Wextra, -Wconversion]
