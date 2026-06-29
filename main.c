@@ -118,7 +118,7 @@ int parse(Tokens *toks, Commands *cmds) {
     return 0;
 }
 
-int interpretCmds(char memory[], size_t dataPtr, Commands *cmds) {
+int interpretCmds(char memory[], int dataPtr, Commands *cmds) {
     size_t cmdPtr = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
@@ -181,21 +181,21 @@ int runBf(size_t inpLen, const char *inp, char memory[]) {
     if (parseErr < 0) {
         fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
                 abs(parseErr + 1));
-        return EXIT_FAILURE;
+        return 1;
     } else if (parseErr > 0) {
         fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
                 parseErr - 1);
-        return EXIT_FAILURE;
+        return 1;
     }
 
     int runErr = interpretCmds(memory, 0, cmds);
 
     if (runErr != 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
-        return EXIT_FAILURE;
+        return 1;
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int readFile(const char *filePath, char **out) {
