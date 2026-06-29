@@ -65,7 +65,7 @@ int makeToken(char c) {
     }
 }
 
-int tokenise(char *input, size_t inpLen, Tokens *toks) {
+int tokenise(const char *input, size_t inpLen, Tokens *toks) {
     for (size_t i = 0; i < inpLen; i++) {
         int tok = makeToken(input[i]);
         if (tok >= 0) {
@@ -118,7 +118,7 @@ int parse(Tokens *toks, Commands *cmds) {
     return 0;
 }
 
-int run(char memory[], size_t dataPtr, Commands *cmds) {
+int interpretCmds(char memory[], size_t dataPtr, Commands *cmds) {
     size_t cmdPtr = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
@@ -165,6 +165,37 @@ int run(char memory[], size_t dataPtr, Commands *cmds) {
     }
 
     return 0;
+}
+
+int runBf(size_t inpLen, const char *inp, char memory[]) {
+    Tokens *toks = malloc(sizeof(Tokens) + inpLen * sizeof(TokenType));
+    toks->length = 0;
+
+    int tokErr = tokenise(inp, inpLen, toks);
+
+    Commands *cmds = malloc(sizeof(Commands) + toks->length * sizeof(Command));
+    cmds->length = 0;
+
+    int parseErr = parse(toks, cmds);
+
+    if (parseErr < 0) {
+        fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
+                abs(parseErr + 1));
+        return EXIT_FAILURE;
+    } else if (parseErr > 0) {
+        fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
+                parseErr - 1);
+        return EXIT_FAILURE;
+    }
+
+    int runErr = interpretCmds(memory, 0, cmds);
+
+    if (runErr != 0) {
+        fprintf(stderr, "Data pointer out of bounds!\n");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
 
 int readFile(const char *filePath, char **out) {
@@ -235,9 +266,28 @@ int main(int argc, char **argv) {
     }
 
     if (strcmp(argv[1], "repl") == 0) {
-        fprintf(stderr, "Not yet implemented!\n\n");
-        showHelp(progName);
-        return EXIT_FAILURE;
+        printf("cbf: a simple interactive brainfuck interpreter\n"
+               "Type `exit` or CTRL-D to exit\n");
+
+        char bfmem[MEM_SIZE] = {0};
+
+        size_t lineSize = 0;
+        ssize_t nread;
+        char *line = "";
+        for (;;) {
+            printf("bf> ");
+
+            nread = getline(&line, &lineSize, stdin);
+            if (nread == -1 || strcmp(line, "exit\n") == 0) {
+                break;
+            }
+            line[--nread] = 0; // remove newline
+
+            runBf((size_t)nread, line, bfmem);
+            putchar('\n');
+        }
+
+        return EXIT_SUCCESS;
     }
 
     if (strcmp(argv[1], "run") == 0) {
@@ -256,37 +306,10 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        size_t inpLen = strlen(inp);
-        Tokens *toks = malloc(sizeof(Tokens) + inpLen * sizeof(TokenType));
-        toks->length = 0;
-
-        int tokErr = tokenise(inp, inpLen, toks);
-
-        Commands *cmds =
-            malloc(sizeof(Commands) + toks->length * sizeof(Command));
-        cmds->length = 0;
-
-        int parseErr = parse(toks, cmds);
-
-        if (parseErr < 0) {
-            fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
-                    abs(parseErr + 1));
-            return EXIT_FAILURE;
-        } else if (parseErr > 0) {
-            fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
-                    parseErr - 1);
-            return EXIT_FAILURE;
-        }
-
         char memory[MEM_SIZE] = {0};
-        int runErr = run(memory, 0, cmds);
+        size_t inpLen = strlen(inp);
 
-        if (runErr != 0) {
-            fprintf(stderr, "Data pointer out of bounds!\n");
-            return EXIT_FAILURE;
-        }
-
-        return EXIT_SUCCESS;
+        return runBf(inpLen, inp, memory);
     }
 
     fprintf(stderr, "Provided arguments not recognised!\n\n");
