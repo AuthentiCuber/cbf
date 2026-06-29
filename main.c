@@ -118,9 +118,7 @@ int parse(Tokens *toks, Commands *cmds) {
     return 0;
 }
 
-int run(Commands *cmds) {
-    char memory[MEM_SIZE] = {0};
-    int dataPtr = 0;
+int run(char memory[], size_t dataPtr, Commands *cmds) {
     size_t cmdPtr = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
@@ -280,7 +278,8 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        int runErr = run(cmds);
+        char memory[MEM_SIZE] = {0};
+        int runErr = run(memory, 0, cmds);
 
         if (runErr != 0) {
             fprintf(stderr, "Data pointer out of bounds!\n");
