@@ -30,10 +30,6 @@ typedef struct {
     Command list[];
 } Commands;
 
-#ifndef MEM_SIZE
-#define MEM_SIZE 30000
-#endif // MEM_SIZE
-
 int makeToken(char c) {
     switch (c) {
     case '>':
@@ -118,44 +114,44 @@ int parse(Tokens *toks, Commands *cmds) {
     return 0;
 }
 
-int interpretCmds(char memory[], int dataPtr, Commands *cmds) {
+int interpretCmds(char memory[], int *dataPtr, Commands *cmds, int memSize) {
     size_t cmdPtr = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
         case DP_INC:
-            dataPtr += currCmd.param;
-            if (dataPtr > MEM_SIZE) {
+            *dataPtr += currCmd.param;
+            if (*dataPtr > memSize) {
                 return 1;
             }
             break;
         case DP_DEC:
-            dataPtr -= currCmd.param;
-            if (dataPtr < 0) {
+            *dataPtr -= currCmd.param;
+            if (*dataPtr < 0) {
                 return -1;
             }
             break;
         case DATA_INC:
-            memory[dataPtr] += currCmd.param;
+            memory[*dataPtr] += currCmd.param;
             break;
         case DATA_DEC:
-            memory[dataPtr] -= currCmd.param;
+            memory[*dataPtr] -= currCmd.param;
             break;
         case INPUT:
-            memory[dataPtr] = (char)getchar();
+            memory[*dataPtr] = (char)getchar();
             break;
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
-                putchar(memory[dataPtr]);
+                putchar(memory[*dataPtr]);
             }
             break;
         case JZ:
-            if (memory[dataPtr] == 0) {
+            if (memory[*dataPtr] == 0) {
                 cmdPtr = currCmd.param;
             }
             break;
         case JNZ:
-            if (memory[dataPtr] != 0) {
+            if (memory[*dataPtr] != 0) {
                 cmdPtr = currCmd.param;
             }
             break;
@@ -167,11 +163,12 @@ int interpretCmds(char memory[], int dataPtr, Commands *cmds) {
     return 0;
 }
 
-int runBf(size_t inpLen, const char *inp, char memory[]) {
+int runBf(size_t inpLen, const char *inp, char memory[], int memSize,
+          int *dataPtr) {
     Tokens *toks = malloc(sizeof(Tokens) + inpLen * sizeof(TokenType));
     toks->length = 0;
 
-    int tokErr = tokenise(inp, inpLen, toks);
+    tokenise(inp, inpLen, toks);
 
     Commands *cmds = malloc(sizeof(Commands) + toks->length * sizeof(Command));
     cmds->length = 0;
@@ -188,7 +185,7 @@ int runBf(size_t inpLen, const char *inp, char memory[]) {
         return 1;
     }
 
-    int runErr = interpretCmds(memory, 0, cmds);
+    int runErr = interpretCmds(memory, dataPtr, cmds, memSize);
 
     if (runErr != 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
@@ -243,16 +240,20 @@ int readFile(const char *filePath, char **out) {
 
 #define HELP_TEXT                                                              \
     "Usage:\n"                                                                 \
-    "  %s [-h | --help]  Print this help message\n"                            \
-    "  %s run <file>     Run a file containing bf code\n"                      \
-    "  %s repl           Run bf code interactively in a repl\n"
+    "  %s run [OPTIONS] <file>  Run a file containing bf code\n"               \
+    "  %s [OPTIONS] repl        Run bf code interactively in a repl\n"         \
+    "\n"                                                                       \
+    "Options:\n"                                                               \
+    "  --help, -h     Print this help message\n"                               \
+    "  --memsize, -m  Set the maximum bf memory tape size\n"
 
 void showHelp(const char *progName) {
-    fprintf(stderr, HELP_TEXT, progName, progName, progName);
+    fprintf(stderr, HELP_TEXT, progName, progName);
 }
 
 int main(int argc, char **argv) {
-    const char *progName = argv[0];
+    int argIdx = 0;
+    const char *progName = argv[argIdx++];
 
     if (argc < 2) {
         fprintf(stderr, "Please provide argument(s)!\n\n");
@@ -260,16 +261,29 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0) {
+    if (strcmp(argv[argIdx], "--help") == 0 ||
+        strcmp(argv[argIdx], "-h") == 0) {
         showHelp(progName);
         return EXIT_SUCCESS;
     }
 
-    if (strcmp(argv[1], "repl") == 0) {
-        printf("cbf: a simple interactive brainfuck interpreter\n"
-               "Type `exit` or CTRL-D to exit\n");
+    int bfMemSize = 30000;
 
-        char bfmem[MEM_SIZE] = {0};
+    if (strcmp(argv[argIdx], "--memsize") == 0 ||
+        strcmp(argv[argIdx], "-m") == 0) {
+        argIdx++;
+        bfMemSize = strtol(argv[argIdx++], NULL, 10);
+    }
+
+    if (strcmp(argv[argIdx], "repl") == 0) {
+        argIdx++;
+        printf("cbf: a simple interactive brainfuck interpreter\n"
+               "(memory tape %d %zu byte cells)\n"
+               "Type `exit` or CTRL-D to exit\n",
+               bfMemSize, sizeof(char));
+
+        char *bfmem = calloc(bfMemSize, sizeof(char));
+        int dataPtr = 0;
 
         size_t lineSize = 0;
         ssize_t nread;
@@ -283,21 +297,22 @@ int main(int argc, char **argv) {
             }
             line[--nread] = 0; // remove newline
 
-            runBf((size_t)nread, line, bfmem);
+            runBf((size_t)nread, line, bfmem, bfMemSize, &dataPtr);
             putchar('\n');
         }
 
         return EXIT_SUCCESS;
     }
 
-    if (strcmp(argv[1], "run") == 0) {
+    if (strcmp(argv[argIdx], "run") == 0) {
+        argIdx++;
         if (argc < 3) {
             fprintf(stderr, "Please provide a file!\n\n");
             showHelp(progName);
             return EXIT_FAILURE;
         }
 
-        const char *fileName = argv[2];
+        const char *fileName = argv[argIdx++];
         char *inp;
         int readErr = readFile(fileName, &inp);
         if (readErr != 0) {
@@ -306,10 +321,10 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        char memory[MEM_SIZE] = {0};
+        char *bfMem = calloc(bfMemSize, sizeof(char));
         size_t inpLen = strlen(inp);
 
-        return runBf(inpLen, inp, memory);
+        return runBf(inpLen, inp, bfMem, bfMemSize, 0);
     }
 
     fprintf(stderr, "Provided arguments not recognised!\n\n");
