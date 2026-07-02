@@ -30,7 +30,7 @@ typedef struct {
     Command list[];
 } Commands;
 
-int makeToken(char c) {
+int makeToken(const char c) {
     switch (c) {
     case '>':
         return DP_INC;
@@ -61,7 +61,7 @@ int makeToken(char c) {
     }
 }
 
-int tokenise(const char *input, size_t inpLen, Tokens *toks) {
+int tokenise(const char *input, const size_t inpLen, Tokens *toks) {
     for (size_t i = 0; i < inpLen; i++) {
         int tok = makeToken(input[i]);
         if (tok >= 0) {
@@ -71,7 +71,7 @@ int tokenise(const char *input, size_t inpLen, Tokens *toks) {
     return 0;
 }
 
-int parse(Tokens *toks, Commands *cmds) {
+int parse(const Tokens *toks, Commands *cmds) {
     size_t paramCounter = 1;
     for (size_t i = 0; i < toks->length; i++) {
         TokenType tok = toks->list[i];
@@ -114,7 +114,8 @@ int parse(Tokens *toks, Commands *cmds) {
     return 0;
 }
 
-int interpretCmds(char memory[], int *dataPtr, Commands *cmds, int memSize) {
+int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
+                  const int memSize) {
     size_t cmdPtr = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
@@ -163,8 +164,8 @@ int interpretCmds(char memory[], int *dataPtr, Commands *cmds, int memSize) {
     return 0;
 }
 
-int runBf(size_t inpLen, const char *inp, char memory[], int memSize,
-          int *dataPtr) {
+int runBf(const size_t inpLen, const char *inp, char memory[],
+          const int memSize, int *dataPtr) {
     Tokens *toks = malloc(sizeof(Tokens) + inpLen * sizeof(TokenType));
     toks->length = 0;
 
@@ -278,11 +279,11 @@ int main(int argc, char **argv) {
     if (strcmp(argv[argIdx], "repl") == 0) {
         argIdx++;
         printf("cbf: a simple interactive brainfuck interpreter\n"
-               "(memory tape %d %zu byte cells)\n"
+               "(memory tape %d x 1 byte cells)\n"
                "Type `exit` or CTRL-D to exit\n",
-               bfMemSize, sizeof(char));
+               bfMemSize);
 
-        char *bfmem = calloc(bfMemSize, sizeof(char));
+        char *bfmem = malloc(bfMemSize);
         int dataPtr = 0;
 
         size_t lineSize = 0;
@@ -321,7 +322,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        char *bfMem = calloc(bfMemSize, sizeof(char));
+        char *bfMem = malloc(bfMemSize);
         size_t inpLen = strlen(inp);
 
         return runBf(inpLen, inp, bfMem, bfMemSize, 0);
