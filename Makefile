@@ -1,2 +1,3 @@
+CFLAGS = -Wall -Wextra -Wpedantic --std=c99
 main:
-	$(CC) -Wall -Wextra -Wpedantic --std=gnu99 -o cbf main.c
+	$(CC) $(CFLAGS) -o cbf main.c

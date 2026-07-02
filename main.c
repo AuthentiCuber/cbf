@@ -286,22 +286,22 @@ int main(int argc, char **argv) {
         char *bfmem = malloc(bfMemSize);
         int dataPtr = 0;
 
-        size_t lineSize = 0;
-        ssize_t nread;
-        char *line = "";
+        char line[200];
         for (;;) {
             printf("bf> ");
 
-            nread = getline(&line, &lineSize, stdin);
-            if (nread == -1 || strcmp(line, "exit\n") == 0) {
+            fflush(stdout);
+            const char *lineErr = fgets(line, sizeof(line), stdin);
+            if (lineErr == NULL || strcmp(line, "exit\n") == 0) {
+                if (feof(stdin)) {
+                    putchar('\n');
+                }
                 break;
             }
-            line[--nread] = 0; // remove newline
 
-            runBf((size_t)nread, line, bfmem, bfMemSize, &dataPtr);
+            runBf(strlen(line), line, bfmem, bfMemSize, &dataPtr);
             putchar('\n');
         }
-
         return EXIT_SUCCESS;
     }
 
