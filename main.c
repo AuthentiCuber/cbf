@@ -15,8 +15,8 @@ typedef enum {
 } TokenType;
 
 typedef struct {
+    TokenType *list;
     size_t length;
-    TokenType list[];
 } Tokens;
 
 typedef struct {
@@ -25,8 +25,8 @@ typedef struct {
 } Command;
 
 typedef struct {
+    Command *list;
     size_t length;
-    Command list[];
 } Commands;
 
 int makeToken(const char c) {
@@ -165,15 +165,13 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
 
 int runBf(const size_t inpLen, const char *inp, char memory[],
           const int memSize, int *dataPtr) {
-    Tokens *toks = malloc(sizeof(Tokens) + inpLen * sizeof(TokenType));
-    toks->length = 0;
+    Tokens toks = (Tokens){calloc(inpLen, sizeof(TokenType)), 0};
 
-    tokenise(inp, inpLen, toks);
+    tokenise(inp, inpLen, &toks);
 
-    Commands *cmds = malloc(sizeof(Commands) + toks->length * sizeof(Command));
-    cmds->length = 0;
+    Commands cmds = (Commands){calloc(toks.length, sizeof(Command)), 0};
 
-    int parseErr = parse(toks, cmds);
+    int parseErr = parse(&toks, &cmds);
 
     if (parseErr < 0) {
         fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
@@ -185,7 +183,7 @@ int runBf(const size_t inpLen, const char *inp, char memory[],
         return 1;
     }
 
-    int runErr = interpretCmds(memory, dataPtr, cmds, memSize);
+    int runErr = interpretCmds(memory, dataPtr, &cmds, memSize);
 
     if (runErr != 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
