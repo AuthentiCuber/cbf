@@ -240,7 +240,7 @@ int readFile(const char *filePath, char **out) {
 
 #define HELP_TEXT                                                              \
     "Usage:\n"                                                                 \
-    "  %s run [OPTIONS] <file>  Run a file containing bf code\n"               \
+    "  %s [OPTIONS] run <file>  Run a file containing bf code\n"               \
     "  %s [OPTIONS] repl        Run bf code interactively in a repl\n"         \
     "\n"                                                                       \
     "Options:\n"                                                               \
@@ -282,7 +282,7 @@ int main(int argc, char **argv) {
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
-        char *bfmem = malloc(bfMemSize);
+        char *bfmem = calloc(bfMemSize, 1);
         int dataPtr = 0;
 
         char line[200];
@@ -321,10 +321,11 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        char *bfMem = malloc(bfMemSize);
+        char *bfMem = calloc(bfMemSize, 1);
         size_t inpLen = strlen(inp);
+        int dataPtr = 0;
 
-        return runBf(inpLen, inp, bfMem, bfMemSize, 0);
+        return runBf(inpLen, inp, bfMem, bfMemSize, &dataPtr);
     }
 
     fprintf(stderr, "Provided arguments not recognised!\n\n");
