@@ -71,7 +71,12 @@ int tokenise(const char *input, const size_t inpLen, Tokens *toks) {
     return 0;
 }
 
+/* Parses TOKS into CMDS, combining repeated tokens.
+Returns a negative value if an unbalanced closing
+bracket is found, or a positive value if an
+unbalanced opening bracket is found. */
 int parse(const Tokens *toks, Commands *cmds) {
+    // combine repeated toks (except jumps)
     size_t paramCounter = 1;
     for (size_t i = 0; i < toks->length; i++) {
         TokenType tok = toks->list[i];
@@ -96,6 +101,7 @@ int parse(const Tokens *toks, Commands *cmds) {
             break;
         case JNZ:
             if (jumpIndexStackHead == 0) {
+                // trying to pop from empty stack
                 return -1 - (int)i;
             }
 
@@ -108,16 +114,20 @@ int parse(const Tokens *toks, Commands *cmds) {
         }
     }
     if (jumpIndexStackHead != 0) {
+        // leftover items in stack
         return (int)jumpIndexStack[--jumpIndexStackHead] + 1;
     }
 
     return 0;
 }
 
+/* Execute CMDS given MEMORY of lengith MEMSIZE and the current
+DATAPTR position. On success returns the number of characters printed,
+a negative return means that DATAPTR went out of bounds. */
 int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
                   const int memSize) {
     size_t cmdPtr = 0;
-    size_t printed = 0;
+    size_t numPrinted = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
@@ -145,7 +155,7 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
                 putchar(memory[*dataPtr]);
-                printed++;
+                numPrinted++;
             }
             break;
         case JZ:
@@ -163,9 +173,11 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
         cmdPtr++;
     }
 
-    return printed;
+    return numPrinted;
 }
 
+/* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
+ returns number of characters printed and a negative value on error. */
 int runBf(const size_t inpLen, const char *inp, char memory[],
           const int memSize, int *dataPtr) {
     Tokens toks = (Tokens){calloc(inpLen, sizeof(TokenType)), 0};
@@ -196,6 +208,8 @@ int runBf(const size_t inpLen, const char *inp, char memory[],
     return charsPrinted;
 }
 
+/* Helper function that reads the entirety of the
+ file at FILEPATH into the string pointed to by OUT. */
 int readFile(const char *filePath, char **out) {
     FILE *file = fopen(filePath, "r");
 
