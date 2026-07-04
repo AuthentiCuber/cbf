@@ -124,7 +124,7 @@ int parse(const Tokens *toks, Commands *cmds) {
 /* Execute CMDS given MEMORY of lengith MEMSIZE and the current
 DATAPTR position. On success returns the number of characters printed,
 a negative return means that DATAPTR went out of bounds. */
-int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
+int interpretCmds(unsigned char memory[], int *dataPtr, const Commands *cmds,
                   const int memSize) {
     size_t cmdPtr = 0;
     size_t numPrinted = 0;
@@ -150,7 +150,7 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
             memory[*dataPtr] -= currCmd.param;
             break;
         case INPUT:
-            memory[*dataPtr] = (char)getchar();
+            memory[*dataPtr] = getchar();
             break;
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
@@ -178,7 +178,7 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
 
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
-int runBf(const size_t inpLen, const char *inp, char memory[],
+int runBf(const size_t inpLen, const char *inp, unsigned char memory[],
           const int memSize, int *dataPtr) {
     Tokens toks = (Tokens){calloc(inpLen, sizeof(TokenType)), 0};
 
@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
-        char *bfmem = calloc(bfMemSize, 1);
+        unsigned char *bfmem = calloc(bfMemSize, 1);
         int dataPtr = 0;
 
         char line[200];
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        char *bfMem = calloc(bfMemSize, 1);
+        unsigned char *bfMem = calloc(bfMemSize, 1);
         size_t inpLen = strlen(inp);
         int dataPtr = 0;
 
