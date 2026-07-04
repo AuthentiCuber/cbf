@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,13 +117,14 @@ int parse(const Tokens *toks, Commands *cmds) {
 int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
                   const int memSize) {
     size_t cmdPtr = 0;
+    size_t printed = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
         case DP_INC:
             *dataPtr += currCmd.param;
             if (*dataPtr > memSize) {
-                return 1;
+                return -2;
             }
             break;
         case DP_DEC:
@@ -143,6 +145,7 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
                 putchar(memory[*dataPtr]);
+                printed++;
             }
             break;
         case JZ:
@@ -160,7 +163,7 @@ int interpretCmds(char memory[], int *dataPtr, const Commands *cmds,
         cmdPtr++;
     }
 
-    return 0;
+    return printed;
 }
 
 int runBf(const size_t inpLen, const char *inp, char memory[],
@@ -176,21 +179,21 @@ int runBf(const size_t inpLen, const char *inp, char memory[],
     if (parseErr < 0) {
         fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
                 abs(parseErr + 1));
-        return 1;
+        return -1;
     } else if (parseErr > 0) {
         fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
                 parseErr - 1);
-        return 1;
+        return -1;
     }
 
-    int runErr = interpretCmds(memory, dataPtr, &cmds, memSize);
+    int charsPrinted = interpretCmds(memory, dataPtr, &cmds, memSize);
 
-    if (runErr != 0) {
+    if (charsPrinted < 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
-        return 1;
+        return -1;
     }
 
-    return 0;
+    return charsPrinted;
 }
 
 int readFile(const char *filePath, char **out) {
@@ -296,8 +299,12 @@ int main(int argc, char **argv) {
                 break;
             }
 
-            runBf(strlen(line), line, bfmem, bfMemSize, &dataPtr);
-            putchar('\n');
+            int charsPrinted =
+                runBf(strlen(line), line, bfmem, bfMemSize, &dataPtr);
+
+            if (charsPrinted != 0) {
+                putchar('\n');
+            }
         }
         return EXIT_SUCCESS;
     }
@@ -323,7 +330,11 @@ int main(int argc, char **argv) {
         size_t inpLen = strlen(inp);
         int dataPtr = 0;
 
-        return runBf(inpLen, inp, bfMem, bfMemSize, &dataPtr);
+        int numCharsPrinted = runBf(inpLen, inp, bfMem, bfMemSize, &dataPtr);
+        if (numCharsPrinted < 0) {
+            return numCharsPrinted;
+        }
+        return 0;
     }
 
     fprintf(stderr, "Provided arguments not recognised!\n\n");
