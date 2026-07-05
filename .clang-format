@@ -1,2 +1,13 @@
 BasedOnStyle: LLVM
 IndentWidth: 4
+
+AllowShortCaseLabelsOnASingleLine: True
+AlignEscapedNewlines: LeftWithLastLine
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortBlocksOnASingleLine: Always
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  AlignCaseColons: false
+

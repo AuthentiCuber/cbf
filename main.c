@@ -32,41 +32,22 @@ typedef struct {
 
 int makeToken(const char c) {
     switch (c) {
-    case '>':
-        return DP_INC;
-        break;
-    case '<':
-        return DP_DEC;
-        break;
-    case '+':
-        return DATA_INC;
-        break;
-    case '-':
-        return DATA_DEC;
-        break;
-    case '[':
-        return JZ;
-        break;
-    case ']':
-        return JNZ;
-        break;
-    case '.':
-        return OUTPUT;
-        break;
-    case ',':
-        return INPUT;
-        break;
-    default:
-        return -1;
+    case '>': return DP_INC;
+    case '<': return DP_DEC;
+    case '+': return DATA_INC;
+    case '-': return DATA_DEC;
+    case '[': return JZ;
+    case ']': return JNZ;
+    case '.': return OUTPUT;
+    case ',': return INPUT;
+    default:  return -1;
     }
 }
 
 int tokenise(const char *input, const size_t inpLen, Tokens *toks) {
     for (size_t i = 0; i < inpLen; i++) {
         int tok = makeToken(input[i]);
-        if (tok >= 0) {
-            toks->list[toks->length++] = (TokenType)tok;
-        }
+        if (tok >= 0) { toks->list[toks->length++] = (TokenType)tok; }
     }
     return 0;
 }
@@ -96,25 +77,20 @@ int parse(const Tokens *toks, Commands *cmds) {
     size_t jumpIndexStackHead = 0;
     for (size_t i = 0; i < cmds->length; i++) {
         switch (cmds->list[i].tokType) {
-        case JZ:
-            jumpIndexStack[jumpIndexStackHead++] = i;
-            break;
+        case JZ: jumpIndexStack[jumpIndexStackHead++] = i; break;
         case JNZ:
-            if (jumpIndexStackHead == 0) {
-                // trying to pop from empty stack
-                return -1 - (int)i;
-            }
+            // trying to pop from empty stack
+            if (jumpIndexStackHead == 0) { return -1 - (int)i; }
 
             size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
             cmds->list[i].param = jumpPos;
             cmds->list[jumpPos].param = i;
             break;
-        default:
-            break;
+        default: break;
         }
     }
+    // leftover items in stack
     if (jumpIndexStackHead != 0) {
-        // leftover items in stack
         return (int)jumpIndexStack[--jumpIndexStackHead] + 1;
     }
 
@@ -133,25 +109,15 @@ int interpretCmds(unsigned char memory[], int *dataPtr, const Commands *cmds,
         switch (currCmd.tokType) {
         case DP_INC:
             *dataPtr += currCmd.param;
-            if (*dataPtr > memSize) {
-                return -2;
-            }
+            if (*dataPtr > memSize) { return -2; }
             break;
         case DP_DEC:
             *dataPtr -= currCmd.param;
-            if (*dataPtr < 0) {
-                return -1;
-            }
+            if (*dataPtr < 0) { return -1; }
             break;
-        case DATA_INC:
-            memory[*dataPtr] += currCmd.param;
-            break;
-        case DATA_DEC:
-            memory[*dataPtr] -= currCmd.param;
-            break;
-        case INPUT:
-            memory[*dataPtr] = getchar();
-            break;
+        case DATA_INC: memory[*dataPtr] += currCmd.param; break;
+        case DATA_DEC: memory[*dataPtr] -= currCmd.param; break;
+        case INPUT:    memory[*dataPtr] = getchar(); break;
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
                 putchar(memory[*dataPtr]);
@@ -159,14 +125,10 @@ int interpretCmds(unsigned char memory[], int *dataPtr, const Commands *cmds,
             }
             break;
         case JZ:
-            if (memory[*dataPtr] == 0) {
-                cmdPtr = currCmd.param;
-            }
+            if (memory[*dataPtr] == 0) { cmdPtr = currCmd.param; }
             break;
         case JNZ:
-            if (memory[*dataPtr] != 0) {
-                cmdPtr = currCmd.param;
-            }
+            if (memory[*dataPtr] != 0) { cmdPtr = currCmd.param; }
             break;
         }
 
@@ -213,30 +175,18 @@ int runBf(const size_t inpLen, const char *inp, unsigned char memory[],
 int readFile(const char *filePath, char **out) {
     FILE *file = fopen(filePath, "r");
 
-    if (file == NULL) {
-        return errno;
-    }
-    if (fseek(file, 0, SEEK_END) < 0) {
-        return errno;
-    }
+    if (file == NULL) { return errno; }
+    if (fseek(file, 0, SEEK_END) < 0) { return errno; }
 
     unsigned long fileLength = (unsigned long)ftell(file);
 
-    if (fileLength <= 0) {
-        return errno;
-    }
-    if (fseek(file, 0, SEEK_SET) < 0) {
-        return errno;
-    }
+    if (fileLength <= 0) { return errno; }
+    if (fseek(file, 0, SEEK_SET) < 0) { return errno; }
 
     char *data = malloc(fileLength);
 
-    if (data == NULL) {
-        return errno;
-    }
-    if (fread(data, 1, fileLength, file) < fileLength) {
-        return ferror(file);
-    }
+    if (data == NULL) { return errno; }
+    if (fread(data, 1, fileLength, file) < fileLength) { return ferror(file); }
     if (data == NULL) {
         perror("filling input buffer failed");
         return 1;
@@ -244,22 +194,20 @@ int readFile(const char *filePath, char **out) {
     // null terminate
     data[fileLength] = 0;
 
-    if (fclose(file) == EOF) {
-        return errno;
-    }
+    if (fclose(file) == EOF) { return errno; }
 
     *out = data;
 
     return 0;
 }
 
-#define HELP_TEXT                                                              \
-    "Usage:\n"                                                                 \
-    "  %s [OPTIONS] run <file>  Run a file containing bf code\n"               \
-    "  %s [OPTIONS] repl        Run bf code interactively in a repl\n"         \
-    "\n"                                                                       \
-    "Options:\n"                                                               \
-    "  --help, -h     Print this help message\n"                               \
+#define HELP_TEXT                                                      \
+    "Usage:\n"                                                         \
+    "  %s [OPTIONS] run <file>  Run a file containing bf code\n"       \
+    "  %s [OPTIONS] repl        Run bf code interactively in a repl\n" \
+    "\n"                                                               \
+    "Options:\n"                                                       \
+    "  --help, -h     Print this help message\n"                       \
     "  --memsize, -m  Set the maximum bf memory tape size\n"
 
 void showHelp(const char *progName) {
@@ -307,18 +255,14 @@ int main(int argc, char **argv) {
             fflush(stdout);
             const char *lineErr = fgets(line, sizeof(line), stdin);
             if (lineErr == NULL || strcmp(line, "exit\n") == 0) {
-                if (feof(stdin)) {
-                    putchar('\n');
-                }
+                if (feof(stdin)) { putchar('\n'); }
                 break;
             }
 
             int charsPrinted =
                 runBf(strlen(line), line, bfmem, bfMemSize, &dataPtr);
 
-            if (charsPrinted != 0) {
-                putchar('\n');
-            }
+            if (charsPrinted != 0) { putchar('\n'); }
         }
         return EXIT_SUCCESS;
     }
@@ -345,9 +289,7 @@ int main(int argc, char **argv) {
         int dataPtr = 0;
 
         int numCharsPrinted = runBf(inpLen, inp, bfMem, bfMemSize, &dataPtr);
-        if (numCharsPrinted < 0) {
-            return numCharsPrinted;
-        }
+        if (numCharsPrinted < 0) { return numCharsPrinted; }
         return 0;
     }
 
