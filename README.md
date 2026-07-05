@@ -30,3 +30,14 @@ You can enter an interactive repl with the `repl` subcommand
     I
     bf> exit
 
+## Development
+
+It is recommended to use a tool like [Bear](https://github.com/rizsotto/Bear) 
+the first time you build:
+
+    $ bear -- make
+
+This generates a `compile_commands.json` file which captures the build flags 
+etc so that static analysis tools like clangd can operate based on the same
+conditions as the actual build.
+
