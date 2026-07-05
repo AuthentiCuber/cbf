@@ -100,10 +100,10 @@ int parse(const Tokens *toks, Commands *cmds) {
 /* Execute CMDS given MEMORY of lengith MEMSIZE and the current
 DATAPTR position. On success returns the number of characters printed,
 a negative return means that DATAPTR went out of bounds. */
-int interpretCmds(unsigned char memory[], int *dataPtr, const Commands *cmds,
-                  const int memSize) {
+int interpretCmds(unsigned char memory[], size_t *dataPtr, const Commands *cmds,
+                  const size_t memSize) {
     size_t cmdPtr = 0;
-    size_t numPrinted = 0;
+    int numPrinted = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
@@ -112,12 +112,13 @@ int interpretCmds(unsigned char memory[], int *dataPtr, const Commands *cmds,
             if (*dataPtr > memSize) { return -2; }
             break;
         case DP_DEC:
+            // unsigned ints, cannot check for < 0 after decrement
+            if (*dataPtr < currCmd.param) { return -1; }
             *dataPtr -= currCmd.param;
-            if (*dataPtr < 0) { return -1; }
             break;
         case DATA_INC: memory[*dataPtr] += currCmd.param; break;
         case DATA_DEC: memory[*dataPtr] -= currCmd.param; break;
-        case INPUT:    memory[*dataPtr] = getchar(); break;
+        case INPUT:    memory[*dataPtr] = (unsigned char)getchar(); break;
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
                 putchar(memory[*dataPtr]);
@@ -141,7 +142,7 @@ int interpretCmds(unsigned char memory[], int *dataPtr, const Commands *cmds,
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
 int runBf(const size_t inpLen, const char *inp, unsigned char memory[],
-          const int memSize, int *dataPtr) {
+          const size_t memSize, size_t *dataPtr) {
     Tokens toks = (Tokens){calloc(inpLen, sizeof(TokenType)), 0};
 
     tokenise(inp, inpLen, &toks);
@@ -230,23 +231,23 @@ int main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 
-    int bfMemSize = 30000;
+    size_t bfMemSize = 30000;
 
     if (strcmp(argv[argIdx], "--memsize") == 0 ||
         strcmp(argv[argIdx], "-m") == 0) {
         argIdx++;
-        bfMemSize = strtol(argv[argIdx++], NULL, 10);
+        bfMemSize = (size_t)strtol(argv[argIdx++], NULL, 10);
     }
 
     if (strcmp(argv[argIdx], "repl") == 0) {
         argIdx++;
         printf("cbf: a simple interactive brainfuck interpreter\n"
-               "(memory tape %d x 1 byte cells)\n"
+               "(memory tape %zu x 1 byte cells)\n"
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
         unsigned char *bfmem = calloc(bfMemSize, 1);
-        int dataPtr = 0;
+        size_t dataPtr = 0;
 
         char line[200];
         for (;;) {
@@ -286,7 +287,7 @@ int main(int argc, char **argv) {
 
         unsigned char *bfMem = calloc(bfMemSize, 1);
         size_t inpLen = strlen(inp);
-        int dataPtr = 0;
+        size_t dataPtr = 0;
 
         int numCharsPrinted = runBf(inpLen, inp, bfMem, bfMemSize, &dataPtr);
         if (numCharsPrinted < 0) { return numCharsPrinted; }
