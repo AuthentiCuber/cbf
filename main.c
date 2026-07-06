@@ -30,6 +30,12 @@ typedef struct {
     size_t length;
 } Commands;
 
+typedef struct {
+    unsigned char *cells;
+    size_t length;
+    size_t dataPtr;
+} Memory;
+
 int makeToken(const char c) {
     switch (c) {
     case '>': return DP_INC;
@@ -100,36 +106,35 @@ int parse(const Tokens *toks, Commands *cmds) {
 /* Execute CMDS given MEMORY of lengith MEMSIZE and the current
 DATAPTR position. On success returns the number of characters printed,
 a negative return means that DATAPTR went out of bounds. */
-int interpretCmds(unsigned char memory[], size_t *dataPtr, const Commands *cmds,
-                  const size_t memSize) {
+int interpretCmds(Memory *mem, const Commands *cmds) {
     size_t cmdPtr = 0;
     int numPrinted = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
         switch (currCmd.tokType) {
         case DP_INC:
-            *dataPtr += currCmd.param;
-            if (*dataPtr > memSize) { return -2; }
+            mem->dataPtr += currCmd.param;
+            if (mem->dataPtr > mem->length) { return -2; }
             break;
         case DP_DEC:
             // unsigned ints, cannot check for < 0 after decrement
-            if (*dataPtr < currCmd.param) { return -1; }
-            *dataPtr -= currCmd.param;
+            if (mem->dataPtr < currCmd.param) { return -1; }
+            mem->dataPtr -= currCmd.param;
             break;
-        case DATA_INC: memory[*dataPtr] += currCmd.param; break;
-        case DATA_DEC: memory[*dataPtr] -= currCmd.param; break;
-        case INPUT:    memory[*dataPtr] = (unsigned char)getchar(); break;
+        case DATA_INC: mem->cells[mem->dataPtr] += currCmd.param; break;
+        case DATA_DEC: mem->cells[mem->dataPtr] -= currCmd.param; break;
+        case INPUT:    mem->cells[mem->dataPtr] = (unsigned char)getchar(); break;
         case OUTPUT:
             for (size_t i = 0; i < currCmd.param; i++) {
-                putchar(memory[*dataPtr]);
+                putchar(mem->cells[mem->dataPtr]);
                 numPrinted++;
             }
             break;
         case JZ:
-            if (memory[*dataPtr] == 0) { cmdPtr = currCmd.param; }
+            if (mem->cells[mem->dataPtr] == 0) { cmdPtr = currCmd.param; }
             break;
         case JNZ:
-            if (memory[*dataPtr] != 0) { cmdPtr = currCmd.param; }
+            if (mem->cells[mem->dataPtr] != 0) { cmdPtr = currCmd.param; }
             break;
         }
 
@@ -141,8 +146,7 @@ int interpretCmds(unsigned char memory[], size_t *dataPtr, const Commands *cmds,
 
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
-int runBf(const size_t inpLen, const char *inp, unsigned char memory[],
-          const size_t memSize, size_t *dataPtr) {
+int runBf(const size_t inpLen, const char *inp, Memory *mem) {
     Tokens toks = (Tokens){calloc(inpLen, sizeof(TokenType)), 0};
 
     tokenise(inp, inpLen, &toks);
@@ -161,7 +165,7 @@ int runBf(const size_t inpLen, const char *inp, unsigned char memory[],
         return -1;
     }
 
-    int charsPrinted = interpretCmds(memory, dataPtr, &cmds, memSize);
+    int charsPrinted = interpretCmds(mem, &cmds);
 
     if (charsPrinted < 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
@@ -246,8 +250,7 @@ int main(int argc, char **argv) {
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
-        unsigned char *bfmem = calloc(bfMemSize, 1);
-        size_t dataPtr = 0;
+        Memory bfmem = (Memory){calloc(bfMemSize, 1), bfMemSize, 0};
 
         char line[200];
         for (;;) {
@@ -260,8 +263,7 @@ int main(int argc, char **argv) {
                 break;
             }
 
-            int charsPrinted =
-                runBf(strlen(line), line, bfmem, bfMemSize, &dataPtr);
+            int charsPrinted = runBf(strlen(line), line, &bfmem);
 
             if (charsPrinted != 0) { putchar('\n'); }
         }
@@ -285,11 +287,10 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        unsigned char *bfMem = calloc(bfMemSize, 1);
+        Memory bfMem = (Memory){calloc(bfMemSize, 1), bfMemSize, 0};
         size_t inpLen = strlen(inp);
-        size_t dataPtr = 0;
 
-        int numCharsPrinted = runBf(inpLen, inp, bfMem, bfMemSize, &dataPtr);
+        int numCharsPrinted = runBf(inpLen, inp, &bfMem);
         if (numCharsPrinted < 0) { return numCharsPrinted; }
         return 0;
     }
