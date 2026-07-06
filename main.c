@@ -147,11 +147,11 @@ int interpretCmds(Memory *mem, const Commands *cmds) {
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
 int runBf(const size_t inpLen, const char *inp, Memory *mem) {
-    Tokens toks = (Tokens){calloc(inpLen, sizeof(TokenType)), 0};
+    Tokens toks = {calloc(inpLen, sizeof(TokenType)), 0};
 
     tokenise(inp, inpLen, &toks);
 
-    Commands cmds = (Commands){calloc(toks.length, sizeof(Command)), 0};
+    Commands cmds = {calloc(toks.length, sizeof(Command)), 0};
 
     int parseErr = parse(&toks, &cmds);
 
@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
-        Memory bfmem = (Memory){calloc(bfMemSize, 1), bfMemSize, 0};
+        Memory bfmem = {calloc(bfMemSize, 1), bfMemSize, 0};
 
         char line[200];
         for (;;) {
@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        Memory bfMem = (Memory){calloc(bfMemSize, 1), bfMemSize, 0};
+        Memory bfMem = {calloc(bfMemSize, 1), bfMemSize, 0};
         size_t inpLen = strlen(inp);
 
         int numCharsPrinted = runBf(inpLen, inp, &bfMem);
