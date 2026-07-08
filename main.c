@@ -1,5 +1,4 @@
 #include <errno.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -146,7 +145,7 @@ int interpretCmds(Memory *mem, const Commands *cmds) {
 
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
-int runBf(const size_t inpLen, const char *inp, Memory *mem) {
+int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
     Tokens toks = {calloc(inpLen, sizeof(TokenType)), 0};
 
     tokenise(inp, inpLen, &toks);
@@ -165,7 +164,23 @@ int runBf(const size_t inpLen, const char *inp, Memory *mem) {
         return -1;
     }
 
+    if (debug) {
+        printf("------- Generated tokens start -------\n");
+        for (size_t i = 0; i < toks.length; i++) {
+            printf("%d ", toks.list[i]);
+        }
+        printf("\n------- Generated tokens end -------\n");
+        printf("------- Generated commands start -------\n");
+        for (size_t i = 0; i < cmds.length; i++) {
+            printf("%d: %zu\n", cmds.list[i].tokType, cmds.list[i].param);
+        }
+        printf("------- Generated commands end -------\n");
+        printf("------- Output start -------\n");
+    }
+
     int charsPrinted = interpretCmds(mem, &cmds);
+
+    if (debug) { printf("\n------- Output end -------\n"); }
 
     if (charsPrinted < 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
@@ -263,7 +278,7 @@ int main(int argc, char **argv) {
                 break;
             }
 
-            int charsPrinted = runBf(strlen(line), line, &bfmem);
+            int charsPrinted = runBf(strlen(line), line, &bfmem, 0);
 
             if (charsPrinted != 0) { putchar('\n'); }
         }
@@ -278,6 +293,12 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
+        int debug = 0;
+        if (strcmp(argv[argIdx], "--debug") == 0) {
+            argIdx++;
+            debug = 1;
+        }
+
         const char *fileName = argv[argIdx++];
         char *inp;
         int readErr = readFile(fileName, &inp);
@@ -290,7 +311,7 @@ int main(int argc, char **argv) {
         Memory bfMem = {calloc(bfMemSize, 1), bfMemSize, 0};
         size_t inpLen = strlen(inp);
 
-        int numCharsPrinted = runBf(inpLen, inp, &bfMem);
+        int numCharsPrinted = runBf(inpLen, inp, &bfMem, debug);
         if (numCharsPrinted < 0) { return numCharsPrinted; }
         return 0;
     }
