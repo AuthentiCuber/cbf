@@ -223,12 +223,15 @@ int readFile(const char *filePath, char **out) {
 
 #define HELP_TEXT                                                      \
     "Usage:\n"                                                         \
-    "  %s [OPTIONS] run <file>  Run a file containing bf code\n"       \
+    "  %s [OPTIONS] run [-d] <file>  Run a file containing bf code\n"  \
     "  %s [OPTIONS] repl        Run bf code interactively in a repl\n" \
     "\n"                                                               \
-    "Options:\n"                                                       \
+    "Glabal options:\n"                                                \
     "  --help, -h     Print this help message\n"                       \
-    "  --memsize, -m  Set the maximum bf memory tape size\n"
+    "  --memsize, -m  Set the maximum bf memory tape size\n"           \
+    "\n"                                                               \
+    "Mode specific options:\n"                                         \
+    "  --debug, -d     With `run`, show debug information\n"
 
 void showHelp(const char *progName) {
     fprintf(stderr, HELP_TEXT, progName, progName);
@@ -294,7 +297,8 @@ int main(int argc, char **argv) {
         }
 
         int debug = 0;
-        if (strcmp(argv[argIdx], "--debug") == 0) {
+        if (strcmp(argv[argIdx], "--debug") == 0 ||
+            strcmp(argv[argIdx], "-d") == 0) {
             argIdx++;
             debug = 1;
         }
