@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,23 +17,23 @@ typedef enum {
 
 typedef struct {
     TokenType *list;
-    size_t length;
+    int length;
 } Tokens;
 
 typedef struct {
     TokenType tokType;
-    size_t param;
+    int param;
 } Command;
 
 typedef struct {
     Command *list;
-    size_t length;
+    int length;
 } Commands;
 
 typedef struct {
     unsigned char *cells;
-    size_t length;
-    size_t dataPtr;
+    int length;
+    int dataPtr;
 } Memory;
 
 int makeToken(const char c) {
@@ -57,37 +58,62 @@ int tokenise(const char *input, const size_t inpLen, Tokens *toks) {
     return 0;
 }
 
-/* Parses TOKS into CMDS, combining repeated tokens.
+int canCollapse(TokenType a, TokenType b) {
+    switch (a) {
+    case JZ: // FALLTHROUGH
+    case JNZ: return 0;
+    case DP_INC:
+        if (b == DP_DEC) { return -1; }
+        break;
+    case DP_DEC:
+        if (b == DP_INC) { return -1; }
+        break;
+    case DATA_INC:
+        if (b == DATA_DEC) { return -1; }
+        break;
+    case DATA_DEC:
+        if (b == DATA_INC) { return -1; }
+        break;
+    default: break;
+    }
+    return a == b;
+}
+
+/* Parses TOKS into CMDS, combining collapsable tokens.
 Returns a negative value if an unbalanced closing
 bracket is found, or a positive value if an
 unbalanced opening bracket is found. */
 int parse(const Tokens *toks, Commands *cmds) {
-    // combine repeated toks (except jumps)
-    size_t paramCounter = 1;
-    for (size_t i = 0; i < toks->length; i++) {
-        TokenType tok = toks->list[i];
-        if (tok == JZ || tok == JNZ) {
-            cmds->list[cmds->length++] = (Command){tok, 0};
-            paramCounter = 1;
-        } else if (i + 1 < toks->length && toks->list[i + 1] == tok) {
-            paramCounter++;
-        } else {
-            cmds->list[cmds->length++] = (Command){tok, paramCounter};
-            paramCounter = 1;
+    // combine collapsable tokens
+    int paramCounter = 1;
+    int tokScanner = 0;
+    while (tokScanner < toks->length) {
+        TokenType currTok = toks->list[tokScanner];
+
+        for (;;) {
+            if (tokScanner++ >= toks->length) { break; }
+
+            int collapseSign = canCollapse(currTok, toks->list[tokScanner]);
+
+            if (collapseSign == 0) { break; }
+
+            paramCounter += collapseSign;
         }
+        cmds->list[cmds->length++] = (Command){currTok, paramCounter};
+        paramCounter = 1;
     }
 
     // jump location resolution
-    size_t jumpIndexStack[cmds->length * sizeof(size_t)];
-    size_t jumpIndexStackHead = 0;
-    for (size_t i = 0; i < cmds->length; i++) {
+    int jumpIndexStack[cmds->length * (int)sizeof(int)];
+    int jumpIndexStackHead = 0;
+    for (int i = 0; i < cmds->length; i++) {
         switch (cmds->list[i].tokType) {
         case JZ: jumpIndexStack[jumpIndexStackHead++] = i; break;
         case JNZ:
             // trying to pop from empty stack
             if (jumpIndexStackHead == 0) { return -1 - (int)i; }
 
-            size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
+            int jumpPos = jumpIndexStack[--jumpIndexStackHead];
             cmds->list[i].param = jumpPos;
             cmds->list[jumpPos].param = i;
             break;
@@ -106,7 +132,7 @@ int parse(const Tokens *toks, Commands *cmds) {
 DATAPTR position. On success returns the number of characters printed,
 a negative return means that DATAPTR went out of bounds. */
 int interpretCmds(Memory *mem, const Commands *cmds) {
-    size_t cmdPtr = 0;
+    int cmdPtr = 0;
     int numPrinted = 0;
     while (cmdPtr < cmds->length) {
         const Command currCmd = cmds->list[cmdPtr];
@@ -124,7 +150,7 @@ int interpretCmds(Memory *mem, const Commands *cmds) {
         case DATA_DEC: mem->cells[mem->dataPtr] -= currCmd.param; break;
         case INPUT:    mem->cells[mem->dataPtr] = (unsigned char)getchar(); break;
         case OUTPUT:
-            for (size_t i = 0; i < currCmd.param; i++) {
+            for (int i = 0; i < currCmd.param; i++) {
                 putchar(mem->cells[mem->dataPtr]);
                 numPrinted++;
             }
@@ -150,7 +176,7 @@ int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
 
     tokenise(inp, inpLen, &toks);
 
-    Commands cmds = {calloc(toks.length, sizeof(Command)), 0};
+    Commands cmds = {calloc((size_t)toks.length, sizeof(Command)), 0};
 
     int parseErr = parse(&toks, &cmds);
 
@@ -166,13 +192,13 @@ int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
 
     if (debug) {
         printf("------- Generated tokens start -------\n");
-        for (size_t i = 0; i < toks.length; i++) {
+        for (int i = 0; i < toks.length; i++) {
             printf("%d ", toks.list[i]);
         }
         printf("\n------- Generated tokens end -------\n");
         printf("------- Generated commands start -------\n");
-        for (size_t i = 0; i < cmds.length; i++) {
-            printf("%d: %zu\n", cmds.list[i].tokType, cmds.list[i].param);
+        for (int i = 0; i < cmds.length; i++) {
+            printf("%d: %d\n", cmds.list[i].tokType, cmds.list[i].param);
         }
         printf("------- Generated commands end -------\n");
         printf("------- Output start -------\n");
@@ -253,22 +279,22 @@ int main(int argc, char **argv) {
         return EXIT_SUCCESS;
     }
 
-    size_t bfMemSize = 30000;
+    int bfMemSize = 30000;
 
     if (strcmp(argv[argIdx], "--memsize") == 0 ||
         strcmp(argv[argIdx], "-m") == 0) {
         argIdx++;
-        bfMemSize = (size_t)strtol(argv[argIdx++], NULL, 10);
+        bfMemSize = (int)strtol(argv[argIdx++], NULL, 10);
     }
 
     if (strcmp(argv[argIdx], "repl") == 0) {
         argIdx++;
         printf("cbf: a simple interactive brainfuck interpreter\n"
-               "(memory tape %zu x 1 byte cells)\n"
+               "(memory tape %d x 1 byte cells)\n"
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
-        Memory bfmem = {calloc(bfMemSize, 1), bfMemSize, 0};
+        Memory bfmem = {calloc((size_t)bfMemSize, 1), bfMemSize, 0};
 
         char line[200];
         for (;;) {
@@ -312,7 +338,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        Memory bfMem = {calloc(bfMemSize, 1), bfMemSize, 0};
+        Memory bfMem = {calloc((size_t)bfMemSize, 1), bfMemSize, 0};
         size_t inpLen = strlen(inp);
 
         int numCharsPrinted = runBf(inpLen, inp, &bfMem, debug);
