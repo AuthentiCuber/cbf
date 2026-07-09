@@ -9,7 +9,7 @@ Build with
 
     $ make
 
-This will create an executable called `cbf`
+This will create an executable called `cbf`.
 A summary of usage can be obtained with
 
     $ ./cbf --help
@@ -23,6 +23,7 @@ You can enter an interactive repl with the `repl` subcommand
 
     $ ./cbf repl
     cbf: a simple interactive brainfuck interpreter
+    (memory tape 30000 x 1 byte cells)
     Type `exit` or CTRL-D to exit
     bf> +++++++++[>++++++++<-]>.
     H
