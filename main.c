@@ -89,12 +89,10 @@ int parse(const Tokens *toks, Commands *cmds) {
     int tokScanner = 0;
     while (tokScanner < toks->length) {
         TokenType currTok = toks->list[tokScanner];
-
         for (;;) {
             if (tokScanner++ >= toks->length) { break; }
 
             int collapseSign = canCollapse(currTok, toks->list[tokScanner]);
-
             if (collapseSign == 0) { break; }
 
             paramCounter += collapseSign;
@@ -124,7 +122,6 @@ int parse(const Tokens *toks, Commands *cmds) {
     if (jumpIndexStackHead != 0) {
         return (int)jumpIndexStack[--jumpIndexStackHead] + 1;
     }
-
     return 0;
 }
 
@@ -162,7 +159,6 @@ int interpretCmds(Memory *mem, const Commands *cmds) {
             if (mem->cells[mem->dataPtr] != 0) { cmdPtr = currCmd.param; }
             break;
         }
-
         cmdPtr++;
     }
 
@@ -175,6 +171,13 @@ int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
     Tokens toks = {calloc(inpLen, sizeof(TokenType)), 0};
 
     tokenise(inp, inpLen, &toks);
+    if (debug) {
+        printf("------- Generated tokens start -------\n");
+        for (int i = 0; i < toks.length; i++) {
+            printf("%d ", toks.list[i]);
+        }
+        printf("\n------- Generated tokens end -------\n");
+    }
 
     Commands cmds = {calloc((size_t)toks.length, sizeof(Command)), 0};
 
@@ -191,11 +194,6 @@ int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
     }
 
     if (debug) {
-        printf("------- Generated tokens start -------\n");
-        for (int i = 0; i < toks.length; i++) {
-            printf("%d ", toks.list[i]);
-        }
-        printf("\n------- Generated tokens end -------\n");
         printf("------- Generated commands start -------\n");
         for (int i = 0; i < cmds.length; i++) {
             printf("%d: %d\n", cmds.list[i].tokType, cmds.list[i].param);
