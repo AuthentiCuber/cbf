@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAKE_ARRAY_TYPE(Type, name) \
+    typedef struct {                \
+        Type *items;                \
+        size_t count;               \
+    } name
+
 typedef enum {
     DP_INC,
     DP_DEC,
@@ -15,20 +21,14 @@ typedef enum {
     JNZ
 } TokenType;
 
-typedef struct {
-    TokenType *list;
-    int length;
-} Tokens;
+MAKE_ARRAY_TYPE(TokenType, tokArr);
 
 typedef struct {
     TokenType tokType;
     int param;
 } Command;
 
-typedef struct {
-    Command *list;
-    int length;
-} Commands;
+MAKE_ARRAY_TYPE(Command, cmdArr);
 
 typedef struct {
     unsigned char *cells;
@@ -50,10 +50,10 @@ int makeToken(const char c) {
     }
 }
 
-int tokenise(const char *input, const size_t inpLen, Tokens *toks) {
+int tokenise(const char *input, const size_t inpLen, tokArr *toks) {
     for (size_t i = 0; i < inpLen; i++) {
         int tok = makeToken(input[i]);
-        if (tok >= 0) { toks->list[toks->length++] = (TokenType)tok; }
+        if (tok >= 0) { toks->items[toks->count++] = (TokenType)tok; }
     }
     return 0;
 }
@@ -83,37 +83,37 @@ int canCollapse(TokenType a, TokenType b) {
 Returns a negative value if an unbalanced closing
 bracket is found, or a positive value if an
 unbalanced opening bracket is found. */
-int parse(const Tokens *toks, Commands *cmds) {
+int parse(tokArr *toks, cmdArr *cmds) {
     // combine collapsable tokens
     int paramCounter = 1;
-    int tokScanner = 0;
-    while (tokScanner < toks->length) {
-        TokenType currTok = toks->list[tokScanner];
+    size_t tokScanner = 0;
+    while (tokScanner < toks->count) {
+        TokenType currTok = toks->items[tokScanner];
         for (;;) {
-            if (tokScanner++ >= toks->length) { break; }
+            if (tokScanner++ >= toks->count) { break; }
 
-            int collapseSign = canCollapse(currTok, toks->list[tokScanner]);
+            int collapseSign = canCollapse(currTok, toks->items[tokScanner]);
             if (collapseSign == 0) { break; }
 
             paramCounter += collapseSign;
         }
-        cmds->list[cmds->length++] = (Command){currTok, paramCounter};
+        cmds->items[cmds->count++] = (Command){currTok, paramCounter};
         paramCounter = 1;
     }
 
     // jump location resolution
-    int jumpIndexStack[cmds->length * (int)sizeof(int)];
-    int jumpIndexStackHead = 0;
-    for (int i = 0; i < cmds->length; i++) {
-        switch (cmds->list[i].tokType) {
+    size_t jumpIndexStack[cmds->count * sizeof(int)];
+    size_t jumpIndexStackHead = 0;
+    for (size_t i = 0; i < cmds->count; i++) {
+        switch (cmds->items[i].tokType) {
         case JZ: jumpIndexStack[jumpIndexStackHead++] = i; break;
         case JNZ:
             // trying to pop from empty stack
             if (jumpIndexStackHead == 0) { return -1 - (int)i; }
 
-            int jumpPos = jumpIndexStack[--jumpIndexStackHead];
-            cmds->list[i].param = jumpPos;
-            cmds->list[jumpPos].param = i;
+            size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
+            cmds->items[i].param = (int)jumpPos;
+            cmds->items[jumpPos].param = (int)i;
             break;
         default: break;
         }
@@ -128,11 +128,11 @@ int parse(const Tokens *toks, Commands *cmds) {
 /* Execute CMDS given MEMORY of lengith MEMSIZE and the current
 DATAPTR position. On success returns the number of characters printed,
 a negative return means that DATAPTR went out of bounds. */
-int interpretCmds(Memory *mem, const Commands *cmds) {
-    int cmdPtr = 0;
+int interpretCmds(Memory *mem, cmdArr *cmds) {
+    size_t cmdPtr = 0;
     int numPrinted = 0;
-    while (cmdPtr < cmds->length) {
-        const Command currCmd = cmds->list[cmdPtr];
+    while (cmdPtr < cmds->count) {
+        const Command currCmd = cmds->items[cmdPtr];
         switch (currCmd.tokType) {
         case DP_INC:
             mem->dataPtr += currCmd.param;
@@ -153,10 +153,14 @@ int interpretCmds(Memory *mem, const Commands *cmds) {
             }
             break;
         case JZ:
-            if (mem->cells[mem->dataPtr] == 0) { cmdPtr = currCmd.param; }
+            if (mem->cells[mem->dataPtr] == 0) {
+                cmdPtr = (size_t)currCmd.param;
+            }
             break;
         case JNZ:
-            if (mem->cells[mem->dataPtr] != 0) { cmdPtr = currCmd.param; }
+            if (mem->cells[mem->dataPtr] != 0) {
+                cmdPtr = (size_t)currCmd.param;
+            }
             break;
         }
         cmdPtr++;
@@ -167,19 +171,19 @@ int interpretCmds(Memory *mem, const Commands *cmds) {
 
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
-int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
-    Tokens toks = {calloc(inpLen, sizeof(TokenType)), 0};
+int runBf(size_t inpLen, const char *inp, Memory *mem, int debug) {
+    tokArr toks = {calloc(inpLen, sizeof(TokenType)), 0};
 
     tokenise(inp, inpLen, &toks);
     if (debug) {
         printf("------- Generated tokens start -------\n");
-        for (int i = 0; i < toks.length; i++) {
-            printf("%d ", toks.list[i]);
+        for (size_t i = 0; i < toks.count; i++) {
+            printf("%d ", toks.items[i]);
         }
         printf("\n------- Generated tokens end -------\n");
     }
 
-    Commands cmds = {calloc((size_t)toks.length, sizeof(Command)), 0};
+    cmdArr cmds = {calloc(toks.count, sizeof(Command)), 0};
 
     int parseErr = parse(&toks, &cmds);
 
@@ -195,8 +199,8 @@ int runBf(const size_t inpLen, const char *inp, Memory *mem, int debug) {
 
     if (debug) {
         printf("------- Generated commands start -------\n");
-        for (int i = 0; i < cmds.length; i++) {
-            printf("%d: %d\n", cmds.list[i].tokType, cmds.list[i].param);
+        for (size_t i = 0; i < cmds.count; i++) {
+            printf("%d: %d\n", cmds.items[i].tokType, cmds.items[i].param);
         }
         printf("------- Generated commands end -------\n");
         printf("------- Output start -------\n");
@@ -236,7 +240,7 @@ int readFile(const char *filePath, char **out) {
         return 1;
     }
     // null terminate
-    data[fileLength] = 0;
+    data[fileLength - 1] = 0;
 
     if (fclose(file) == EOF) { return errno; }
 
