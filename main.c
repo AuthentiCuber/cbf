@@ -25,7 +25,10 @@ MAKE_ARRAY_TYPE(TokenType, tokArr);
 
 typedef struct {
     TokenType tokType;
-    int param;
+    union {
+        size_t jumploc; // for jz, jnz
+        int numtimes;   // otherwise
+    };
 } Command;
 
 MAKE_ARRAY_TYPE(Command, cmdArr);
@@ -97,7 +100,8 @@ int parse(tokArr *toks, cmdArr *cmds) {
 
             paramCounter += collapseSign;
         }
-        cmds->items[cmds->count++] = (Command){currTok, paramCounter};
+        cmds->items[cmds->count++] =
+            (Command){currTok, {.numtimes = paramCounter}};
         paramCounter = 1;
     }
 
@@ -112,8 +116,8 @@ int parse(tokArr *toks, cmdArr *cmds) {
             if (jumpIndexStackHead == 0) { return -1 - (int)i; }
 
             size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
-            cmds->items[i].param = (int)jumpPos;
-            cmds->items[jumpPos].param = (int)i;
+            cmds->items[i].jumploc = jumpPos;
+            cmds->items[jumpPos].jumploc = i;
             break;
         default: break;
         }
@@ -135,32 +139,28 @@ int interpretCmds(Memory *mem, cmdArr *cmds) {
         const Command currCmd = cmds->items[cmdPtr];
         switch (currCmd.tokType) {
         case DP_INC:
-            mem->dataPtr += currCmd.param;
+            mem->dataPtr += currCmd.numtimes;
             if (mem->dataPtr > mem->length) { return -2; }
             break;
         case DP_DEC:
             // unsigned ints, cannot check for < 0 after decrement
-            if (mem->dataPtr < currCmd.param) { return -1; }
-            mem->dataPtr -= currCmd.param;
+            if (mem->dataPtr < currCmd.numtimes) { return -1; }
+            mem->dataPtr -= currCmd.numtimes;
             break;
-        case DATA_INC: mem->cells[mem->dataPtr] += currCmd.param; break;
-        case DATA_DEC: mem->cells[mem->dataPtr] -= currCmd.param; break;
+        case DATA_INC: mem->cells[mem->dataPtr] += currCmd.numtimes; break;
+        case DATA_DEC: mem->cells[mem->dataPtr] -= currCmd.numtimes; break;
         case INPUT:    mem->cells[mem->dataPtr] = (unsigned char)getchar(); break;
         case OUTPUT:
-            for (int i = 0; i < currCmd.param; i++) {
+            for (int i = 0; i < currCmd.numtimes; i++) {
                 putchar(mem->cells[mem->dataPtr]);
                 numPrinted++;
             }
             break;
         case JZ:
-            if (mem->cells[mem->dataPtr] == 0) {
-                cmdPtr = (size_t)currCmd.param;
-            }
+            if (mem->cells[mem->dataPtr] == 0) { cmdPtr = currCmd.jumploc; }
             break;
         case JNZ:
-            if (mem->cells[mem->dataPtr] != 0) {
-                cmdPtr = (size_t)currCmd.param;
-            }
+            if (mem->cells[mem->dataPtr] != 0) { cmdPtr = currCmd.jumploc; }
             break;
         }
         cmdPtr++;
@@ -200,7 +200,8 @@ int runBf(size_t inpLen, const char *inp, Memory *mem, int debug) {
     if (debug) {
         printf("------- Generated commands start -------\n");
         for (size_t i = 0; i < cmds.count; i++) {
-            printf("%d: %d\n", cmds.items[i].tokType, cmds.items[i].param);
+            // numtimes isnt technically correct here...
+            printf("%d: %d\n", cmds.items[i].tokType, cmds.items[i].numtimes);
         }
         printf("------- Generated commands end -------\n");
         printf("------- Output start -------\n");
