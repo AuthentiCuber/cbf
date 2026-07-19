@@ -1,3 +1,5 @@
+#define CLAP_IMPLEMENTATION
+#include "clap.h"
 #include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -19,27 +21,27 @@ typedef enum {
     OUTPUT,
     JZ,
     JNZ
-} TokenType;
+} token_type;
 
-MAKE_ARRAY_TYPE(TokenType, tokArr);
+MAKE_ARRAY_TYPE(token_type, tok_type_arr);
 
 typedef struct {
-    TokenType tokType;
+    token_type type;
     union {
         size_t jumploc; // for jz, jnz
         int numtimes;   // otherwise
     };
-} Command;
+} token;
 
-MAKE_ARRAY_TYPE(Command, cmdArr);
+MAKE_ARRAY_TYPE(token, tok_arr);
 
 typedef struct {
     unsigned char *cells;
     int length;
     int dataPtr;
-} Memory;
+} memory;
 
-int makeToken(const char c) {
+int make_token(const char c) {
     switch (c) {
     case '>': return DP_INC;
     case '<': return DP_DEC;
@@ -53,15 +55,17 @@ int makeToken(const char c) {
     }
 }
 
-int tokenise(const char *input, const size_t inpLen, tokArr *toks) {
-    for (size_t i = 0; i < inpLen; i++) {
-        int tok = makeToken(input[i]);
-        if (tok >= 0) { toks->items[toks->count++] = (TokenType)tok; }
+int tokenise(const char *input, const size_t inp_len, tok_type_arr *tok_types) {
+    for (size_t i = 0; i < inp_len; i++) {
+        int tok_type = make_token(input[i]);
+        if (tok_type >= 0) {
+            tok_types->items[tok_types->count++] = (token_type)tok_type;
+        }
     }
     return 0;
 }
 
-int canCollapse(TokenType a, TokenType b) {
+int can_collapse(token_type a, token_type b) {
     switch (a) {
     case JZ: // FALLTHROUGH
     case JNZ: return 0;
@@ -86,45 +90,46 @@ int canCollapse(TokenType a, TokenType b) {
 Returns a negative value if an unbalanced closing
 bracket is found, or a positive value if an
 unbalanced opening bracket is found. */
-int parse(tokArr *toks, cmdArr *cmds) {
+int parse(tok_type_arr *tok_types, tok_arr *toks) {
     // combine collapsable tokens
-    int paramCounter = 1;
-    size_t tokScanner = 0;
-    while (tokScanner < toks->count) {
-        TokenType currTok = toks->items[tokScanner];
+    int param_counter = 1;
+    size_t tok_type_scanner = 0;
+    while (tok_type_scanner < tok_types->count) {
+        token_type curr_tok_type = tok_types->items[tok_type_scanner];
         for (;;) {
-            if (tokScanner++ >= toks->count) { break; }
+            if (tok_type_scanner++ >= tok_types->count) { break; }
 
-            int collapseSign = canCollapse(currTok, toks->items[tokScanner]);
-            if (collapseSign == 0) { break; }
+            int collapse_sign =
+                can_collapse(curr_tok_type, tok_types->items[tok_type_scanner]);
+            if (collapse_sign == 0) { break; }
 
-            paramCounter += collapseSign;
+            param_counter += collapse_sign;
         }
-        cmds->items[cmds->count++] =
-            (Command){currTok, {.numtimes = paramCounter}};
-        paramCounter = 1;
+        toks->items[toks->count++] =
+            (token){curr_tok_type, {.numtimes = param_counter}};
+        param_counter = 1;
     }
 
     // jump location resolution
-    size_t jumpIndexStack[cmds->count * sizeof(int)];
-    size_t jumpIndexStackHead = 0;
-    for (size_t i = 0; i < cmds->count; i++) {
-        switch (cmds->items[i].tokType) {
-        case JZ: jumpIndexStack[jumpIndexStackHead++] = i; break;
+    size_t jump_idx_stack[toks->count * sizeof(int)];
+    size_t jump_idx_stack_head = 0;
+    for (size_t i = 0; i < toks->count; i++) {
+        switch (toks->items[i].type) {
+        case JZ: jump_idx_stack[jump_idx_stack_head++] = i; break;
         case JNZ:
             // trying to pop from empty stack
-            if (jumpIndexStackHead == 0) { return -1 - (int)i; }
+            if (jump_idx_stack_head == 0) { return -1 - (int)i; }
 
-            size_t jumpPos = jumpIndexStack[--jumpIndexStackHead];
-            cmds->items[i].jumploc = jumpPos;
-            cmds->items[jumpPos].jumploc = i;
+            size_t jump_pos = jump_idx_stack[--jump_idx_stack_head];
+            toks->items[i].jumploc = jump_pos;
+            toks->items[jump_pos].jumploc = i;
             break;
         default: break;
         }
     }
     // leftover items in stack
-    if (jumpIndexStackHead != 0) {
-        return (int)jumpIndexStack[--jumpIndexStackHead] + 1;
+    if (jump_idx_stack_head != 0) {
+        return (int)jump_idx_stack[--jump_idx_stack_head] + 1;
     }
     return 0;
 }
@@ -132,49 +137,49 @@ int parse(tokArr *toks, cmdArr *cmds) {
 /* Execute CMDS given MEMORY of lengith MEMSIZE and the current
 DATAPTR position. On success returns the number of characters printed,
 a negative return means that DATAPTR went out of bounds. */
-int interpretCmds(Memory *mem, cmdArr *cmds) {
-    size_t cmdPtr = 0;
-    int numPrinted = 0;
-    while (cmdPtr < cmds->count) {
-        const Command currCmd = cmds->items[cmdPtr];
-        switch (currCmd.tokType) {
+int interpret_cmds(memory *mem, tok_arr *toks) {
+    size_t cmd_ptr = 0;
+    int num_printed = 0;
+    while (cmd_ptr < toks->count) {
+        token curr_tok = toks->items[cmd_ptr];
+        switch (curr_tok.type) {
         case DP_INC:
-            mem->dataPtr += currCmd.numtimes;
+            mem->dataPtr += curr_tok.numtimes;
             if (mem->dataPtr > mem->length) { return -2; }
             break;
         case DP_DEC:
             // unsigned ints, cannot check for < 0 after decrement
-            if (mem->dataPtr < currCmd.numtimes) { return -1; }
-            mem->dataPtr -= currCmd.numtimes;
+            if (mem->dataPtr < curr_tok.numtimes) { return -1; }
+            mem->dataPtr -= curr_tok.numtimes;
             break;
-        case DATA_INC: mem->cells[mem->dataPtr] += currCmd.numtimes; break;
-        case DATA_DEC: mem->cells[mem->dataPtr] -= currCmd.numtimes; break;
+        case DATA_INC: mem->cells[mem->dataPtr] += curr_tok.numtimes; break;
+        case DATA_DEC: mem->cells[mem->dataPtr] -= curr_tok.numtimes; break;
         case INPUT:    mem->cells[mem->dataPtr] = (unsigned char)getchar(); break;
         case OUTPUT:
-            for (int i = 0; i < currCmd.numtimes; i++) {
+            for (int i = 0; i < curr_tok.numtimes; i++) {
                 putchar(mem->cells[mem->dataPtr]);
-                numPrinted++;
+                num_printed++;
             }
             break;
         case JZ:
-            if (mem->cells[mem->dataPtr] == 0) { cmdPtr = currCmd.jumploc; }
+            if (mem->cells[mem->dataPtr] == 0) { cmd_ptr = curr_tok.jumploc; }
             break;
         case JNZ:
-            if (mem->cells[mem->dataPtr] != 0) { cmdPtr = currCmd.jumploc; }
+            if (mem->cells[mem->dataPtr] != 0) { cmd_ptr = curr_tok.jumploc; }
             break;
         }
-        cmdPtr++;
+        cmd_ptr++;
     }
 
-    return numPrinted;
+    return num_printed;
 }
 
 /* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
  returns number of characters printed and a negative value on error. */
-int runBf(size_t inpLen, const char *inp, Memory *mem, int debug) {
-    tokArr toks = {calloc(inpLen, sizeof(TokenType)), 0};
+int run_bf(size_t inp_len, const char *inp, memory *mem, int debug) {
+    tok_type_arr toks = {calloc(inp_len, sizeof(token_type)), 0};
 
-    tokenise(inp, inpLen, &toks);
+    tokenise(inp, inp_len, &toks);
     if (debug) {
         printf("------- Generated tokens start -------\n");
         for (size_t i = 0; i < toks.count; i++) {
@@ -183,17 +188,17 @@ int runBf(size_t inpLen, const char *inp, Memory *mem, int debug) {
         printf("\n------- Generated tokens end -------\n");
     }
 
-    cmdArr cmds = {calloc(toks.count, sizeof(Command)), 0};
+    tok_arr cmds = {calloc(toks.count, sizeof(token)), 0};
 
-    int parseErr = parse(&toks, &cmds);
+    int parse_err = parse(&toks, &cmds);
 
-    if (parseErr < 0) {
+    if (parse_err < 0) {
         fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
-                abs(parseErr + 1));
+                abs(parse_err + 1));
         return -1;
-    } else if (parseErr > 0) {
+    } else if (parse_err > 0) {
         fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
-                parseErr - 1);
+                parse_err - 1);
         return -1;
     }
 
@@ -201,47 +206,49 @@ int runBf(size_t inpLen, const char *inp, Memory *mem, int debug) {
         printf("------- Generated commands start -------\n");
         for (size_t i = 0; i < cmds.count; i++) {
             // numtimes isnt technically correct here...
-            printf("%d: %d\n", cmds.items[i].tokType, cmds.items[i].numtimes);
+            printf("%d: %d\n", cmds.items[i].type, cmds.items[i].numtimes);
         }
         printf("------- Generated commands end -------\n");
         printf("------- Output start -------\n");
     }
 
-    int charsPrinted = interpretCmds(mem, &cmds);
+    int chars_printed = interpret_cmds(mem, &cmds);
 
     if (debug) { printf("\n------- Output end -------\n"); }
 
-    if (charsPrinted < 0) {
+    if (chars_printed < 0) {
         fprintf(stderr, "Data pointer out of bounds!\n");
         return -1;
     }
 
-    return charsPrinted;
+    return chars_printed;
 }
 
 /* Helper function that reads the entirety of the
  file at FILEPATH into the string pointed to by OUT. */
-int readFile(const char *filePath, char **out) {
-    FILE *file = fopen(filePath, "r");
+int read_file(const char *file_path, char **out) {
+    FILE *file = fopen(file_path, "r");
 
     if (file == NULL) { return errno; }
     if (fseek(file, 0, SEEK_END) < 0) { return errno; }
 
-    unsigned long fileLength = (unsigned long)ftell(file);
+    unsigned long file_length = (unsigned long)ftell(file);
 
-    if (fileLength <= 0) { return errno; }
+    if (file_length <= 0) { return errno; }
     if (fseek(file, 0, SEEK_SET) < 0) { return errno; }
 
-    char *data = malloc(fileLength);
+    char *data = malloc(file_length);
 
     if (data == NULL) { return errno; }
-    if (fread(data, 1, fileLength, file) < fileLength) { return ferror(file); }
+    if (fread(data, 1, file_length, file) < file_length) {
+        return ferror(file);
+    }
     if (data == NULL) {
         perror("filling input buffer failed");
         return 1;
     }
     // null terminate
-    data[fileLength - 1] = 0;
+    data[file_length - 1] = 0;
 
     if (fclose(file) == EOF) { return errno; }
 
@@ -262,42 +269,46 @@ int readFile(const char *filePath, char **out) {
     "Mode specific options:\n"                                         \
     "  --debug, -d     With `run`, show debug information\n"
 
-void showHelp(const char *progName) {
-    fprintf(stderr, HELP_TEXT, progName, progName);
+void show_help(const char *prog_name) {
+    fprintf(stderr, HELP_TEXT, prog_name, prog_name);
 }
 
 int main(int argc, char **argv) {
-    int argIdx = 0;
-    const char *progName = argv[argIdx++];
-
-    if (argc < 2) {
-        fprintf(stderr, "Please provide argument(s)!\n\n");
-        showHelp(progName);
+    char *prog_name = argv[0];
+    clap_arg args[] = {{"--help", 0, NULL},
+                       {"--memsize", 1, NULL},
+                       {"repl", 0, NULL},
+                       {"--debug", 0, NULL},
+                       {"run", 1, NULL}};
+    clap_arg_array args_arr = {args, sizeof(args) / sizeof(args[0])};
+    clap_parsed_array *parsed = malloc(sizeof(clap_parsed_array));
+    int parse_err = clap_parse_args(&args_arr, argc, argv, parsed);
+    if (parse_err != 0) {
+        fprintf(stderr, "Failed to parse arguments!\n\n");
+        show_help(prog_name);
         return EXIT_FAILURE;
     }
 
-    if (strcmp(argv[argIdx], "--help") == 0 ||
-        strcmp(argv[argIdx], "-h") == 0) {
-        showHelp(progName);
+    if (clap_has_flag(parsed, "--help")) {
+        show_help(prog_name);
         return EXIT_SUCCESS;
     }
 
-    int bfMemSize = 30000;
+    clap_parsed *opt;
 
-    if (strcmp(argv[argIdx], "--memsize") == 0 ||
-        strcmp(argv[argIdx], "-m") == 0) {
-        argIdx++;
-        bfMemSize = (int)strtol(argv[argIdx++], NULL, 10);
+    size_t bfMemSize = 30000;
+
+    if ((opt = clap_get_opt(parsed, "--memsize")) != NULL) {
+        bfMemSize = strtoul(opt->params[0], NULL, 10);
     }
 
-    if (strcmp(argv[argIdx], "repl") == 0) {
-        argIdx++;
+    if (clap_has_flag(parsed, "repl")) {
         printf("cbf: a simple interactive brainfuck interpreter\n"
-               "(memory tape %d x 1 byte cells)\n"
+               "(memory tape %zu x 1 byte cells)\n"
                "Type `exit` or CTRL-D to exit\n",
                bfMemSize);
 
-        Memory bfmem = {calloc((size_t)bfMemSize, 1), bfMemSize, 0};
+        memory bfmem = {calloc(bfMemSize, 1), (int)bfMemSize, 0};
 
         char line[200];
         for (;;) {
@@ -310,46 +321,41 @@ int main(int argc, char **argv) {
                 break;
             }
 
-            int charsPrinted = runBf(strlen(line), line, &bfmem, 0);
+            int charsPrinted = run_bf(strlen(line), line, &bfmem, 0);
 
             if (charsPrinted != 0) { putchar('\n'); }
         }
         return EXIT_SUCCESS;
     }
 
-    if (strcmp(argv[argIdx], "run") == 0) {
-        argIdx++;
+    int debug = 0;
+    if (clap_has_flag(parsed, "--debug")) { debug = 1; }
+
+    if ((opt = clap_get_opt(parsed, "run")) != NULL) {
         if (argc < 3) {
             fprintf(stderr, "Please provide a file!\n\n");
-            showHelp(progName);
+            show_help(prog_name);
             return EXIT_FAILURE;
         }
 
-        int debug = 0;
-        if (strcmp(argv[argIdx], "--debug") == 0 ||
-            strcmp(argv[argIdx], "-d") == 0) {
-            argIdx++;
-            debug = 1;
-        }
-
-        const char *fileName = argv[argIdx++];
+        const char *fileName = opt->params[0];
         char *inp;
-        int readErr = readFile(fileName, &inp);
+        int readErr = read_file(fileName, &inp);
         if (readErr != 0) {
             fprintf(stderr, "failed to read file %s: %s\n", fileName,
                     strerror(readErr));
             return EXIT_FAILURE;
         }
 
-        Memory bfMem = {calloc((size_t)bfMemSize, 1), bfMemSize, 0};
+        memory bfMem = {calloc(bfMemSize, 1), (int)bfMemSize, 0};
         size_t inpLen = strlen(inp);
 
-        int numCharsPrinted = runBf(inpLen, inp, &bfMem, debug);
+        int numCharsPrinted = run_bf(inpLen, inp, &bfMem, debug);
         if (numCharsPrinted < 0) { return numCharsPrinted; }
         return 0;
     }
 
     fprintf(stderr, "Provided arguments not recognised!\n\n");
-    showHelp(progName);
+    show_help(prog_name);
     return EXIT_FAILURE;
 }
