@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Begin using [clap.h](https://github.com/AuthentiCuber/clap) for CLI argument parsing.
+- Begin using [clap.h](https://github.com/AuthentiCuber/clap) 1.1.0 for CLI argument parsing.
 - Make all functions and variables snake_case (were camelCase).
+- Nomenclature change: `token_type` are now consistently referred to as such, `command`s are now `token`s.
 
-### Removed
+### Fixed
 
-- CLI flag aliases (clap doesn't support that yet).
+- Remove unnecessary stddef header include.

@@ -1,7 +1,6 @@
 #define CLAP_IMPLEMENTATION
 #include "clap.h"
 #include <errno.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -275,14 +274,15 @@ void show_help(const char *prog_name) {
 
 int main(int argc, char **argv) {
     char *prog_name = argv[0];
-    clap_arg args[] = {{"--help", 0, NULL},
-                       {"--memsize", 1, NULL},
-                       {"repl", 0, NULL},
-                       {"--debug", 0, NULL},
-                       {"run", 1, NULL}};
+    clap_arg args[] = {{"--help", "-h", 0, NULL},
+                       {"--memsize", "-m", 1, NULL},
+                       {"repl", "", 0, NULL},
+                       {"--debug", "-d", 0, NULL},
+                       {"run", "", 1, NULL}};
     clap_arg_array args_arr = {args, sizeof(args) / sizeof(args[0])};
     clap_parsed_array *parsed = malloc(sizeof(clap_parsed_array));
-    int parse_err = clap_parse_args(&args_arr, argc, argv, parsed);
+    clap_unexpected_array *unexpected = malloc(sizeof(clap_unexpected_array));
+    int parse_err = clap_parse_args(&args_arr, argc, argv, parsed, unexpected);
     if (parse_err != 0) {
         fprintf(stderr, "Failed to parse arguments!\n\n");
         show_help(prog_name);
