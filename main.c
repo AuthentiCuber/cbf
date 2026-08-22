@@ -95,12 +95,7 @@ collapse_result can_collapse_toks(token_type a, token_type b) {
     return a == b ? COLLAPSE_ADD : COLLAPSE_NONE;
 }
 
-/* Parses TOKS into CMDS, combining collapsable tokens.
-Returns a negative value if an unbalanced closing
-bracket is found, or a positive value if an
-unbalanced opening bracket is found. */
-int parse(tok_type_arr *tok_types_in, tok_arr *toks_out) {
-    // combine collapsable tokens
+void collapse_repeated_toks(tok_type_arr *tok_types_in, tok_arr *toks_out) {
     int param_counter = 1;
     size_t tok_type_scanner = 0;
     while (tok_type_scanner < tok_types_in->count) {
@@ -123,29 +118,47 @@ int parse(tok_type_arr *tok_types_in, tok_arr *toks_out) {
             (token){curr_tok_type, {.numtimes = param_counter}};
         param_counter = 1;
     }
+}
 
-    // jump location resolution
-    size_t jump_idx_stack[toks_out->count * sizeof(int)];
+typedef struct {
+    enum { UNBALANCED_RIGHT, UNBALANCED_LEFT, PARSE_SUCCESS } status;
+    size_t error_loc;
+} parse_result;
+
+parse_result resolve_jump_locs(tok_arr *toks) {
+    size_t jump_idx_stack[toks->count * sizeof(int)];
     size_t jump_idx_stack_head = 0;
-    for (size_t i = 0; i < toks_out->count; i++) {
-        switch (toks_out->items[i].type) {
-        case JZ: jump_idx_stack[jump_idx_stack_head++] = i; break;
+    for (size_t tok_idx = 0; tok_idx < toks->count; tok_idx++) {
+        switch (toks->items[tok_idx].type) {
+        case JZ: jump_idx_stack[jump_idx_stack_head++] = tok_idx; break;
         case JNZ:
             // trying to pop from empty stack
-            if (jump_idx_stack_head == 0) { return -1 - (int)i; }
+            if (jump_idx_stack_head == 0) {
+                return (parse_result){UNBALANCED_RIGHT, tok_idx};
+            }
 
             size_t jump_pos = jump_idx_stack[--jump_idx_stack_head];
-            toks_out->items[i].jumploc = jump_pos;
-            toks_out->items[jump_pos].jumploc = i;
+            toks->items[tok_idx].jumploc = jump_pos;
+            toks->items[jump_pos].jumploc = tok_idx;
             break;
         default: break;
         }
     }
     // leftover items in stack
     if (jump_idx_stack_head != 0) {
-        return (int)jump_idx_stack[--jump_idx_stack_head] + 1;
+        return (parse_result){UNBALANCED_LEFT, jump_idx_stack[0]};
     }
-    return 0;
+    return (parse_result){PARSE_SUCCESS, 0};
+}
+
+/* Parses TOKS into CMDS, combining collapsable tokens.
+Returns a negative value if an unbalanced closing
+bracket is found, or a positive value if an
+unbalanced opening bracket is found. */
+parse_result parse(tok_type_arr *tok_types_in, tok_arr *toks_out) {
+    collapse_repeated_toks(tok_types_in, toks_out);
+
+    return resolve_jump_locs(toks_out);
 }
 
 /* Execute CMDS given MEMORY of lengith MEMSIZE and the current
@@ -205,15 +218,17 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
 
     tok_arr cmds = {calloc(toks.count, sizeof(token)), 0};
 
-    int parse_err = parse(&toks, &cmds);
+    parse_result parse_err = parse(&toks, &cmds);
 
-    if (parse_err < 0) {
-        fprintf(stderr, "Unbalanced closing bracket found at position %d\n",
-                abs(parse_err + 1));
+    if (parse_err.status == UNBALANCED_RIGHT) {
+        fprintf(stderr,
+                "Aborted: Unbalanced closing bracket found at pos %zu\n",
+                parse_err.error_loc);
         return -1;
-    } else if (parse_err > 0) {
-        fprintf(stderr, "Unbalanced opening bracket found at position %d\n",
-                parse_err - 1);
+    } else if (parse_err.status == UNBALANCED_LEFT) {
+        fprintf(stderr,
+                "Aborted: Unbalanced opening bracket found at pos %zu\n",
+                parse_err.error_loc);
         return -1;
     }
 

@@ -7,19 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Added
-
-
 ### Changed
 
-- `#undef MAKE_ARRAY_TYPE` after use.
-- Renamed parameters in `tokenise()`, `parse()` to make their purpose clearer.
 - Begin using `stdbool.h` for boolean values.
 - Factored repl logic into its own function.
-- Now using `collapse_result` enum for repeated token logic.
+- New `collapse_result` enum for repeated token logic.
+- Factored parsing logic into individual functions.
+- Cleaner error handling with `parse_result` struct.
 
 ### Fixed
 
+- `#undef MAKE_ARRAY_TYPE` after use.
+- Renamed parameters in `tokenise()`, `parse()` to make their purpose clearer.
 
 ## [1.0.0] - 2026-07-22
 
