@@ -151,32 +151,35 @@ parse_result resolve_jump_locs(tok_arr *toks) {
     return (parse_result){PARSE_SUCCESS, 0};
 }
 
-/* Parses TOKS into CMDS, combining collapsable tokens.
-Returns a negative value if an unbalanced closing
-bracket is found, or a positive value if an
-unbalanced opening bracket is found. */
 parse_result parse(tok_type_arr *tok_types_in, tok_arr *toks_out) {
     collapse_repeated_toks(tok_types_in, toks_out);
 
     return resolve_jump_locs(toks_out);
 }
 
-/* Execute CMDS given MEMORY of lengith MEMSIZE and the current
-DATAPTR position. On success returns the number of characters printed,
-a negative return means that DATAPTR went out of bounds. */
-int interpret_cmds(memory *mem, tok_arr *toks) {
+typedef struct {
+    enum { DATA_PTR_OOB, RUN_SUCCESS } status;
+    size_t error_loc;
+    size_t chars_printed;
+} run_result;
+
+run_result interpret_cmds(memory *mem, tok_arr *toks) {
     size_t cmd_ptr = 0;
-    int num_printed = 0;
+    size_t num_printed = 0;
     while (cmd_ptr < toks->count) {
         token curr_tok = toks->items[cmd_ptr];
         switch (curr_tok.type) {
         case DP_INC:
             mem->dataPtr += curr_tok.numtimes;
-            if (mem->dataPtr > mem->length) { return -2; }
+            if (mem->dataPtr > mem->length) {
+                return (run_result){DATA_PTR_OOB, cmd_ptr, num_printed};
+            }
             break;
         case DP_DEC:
             // unsigned ints, cannot check for < 0 after decrement
-            if (mem->dataPtr < curr_tok.numtimes) { return -1; }
+            if (mem->dataPtr < curr_tok.numtimes) {
+                return (run_result){DATA_PTR_OOB, cmd_ptr, num_printed};
+            }
             mem->dataPtr -= curr_tok.numtimes;
             break;
         case DATA_INC: mem->cells[mem->dataPtr] += curr_tok.numtimes; break;
@@ -198,11 +201,9 @@ int interpret_cmds(memory *mem, tok_arr *toks) {
         cmd_ptr++;
     }
 
-    return num_printed;
+    return (run_result){RUN_SUCCESS, 0, num_printed};
 }
 
-/* Runs INP as bf code, given MEMORY, DATAPTR, etc. Like interpretCmds,
- returns number of characters printed and a negative value on error. */
 int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
     tok_type_arr toks = {calloc(inp_len, sizeof(token_type)), 0};
 
@@ -224,11 +225,15 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
         fprintf(stderr,
                 "Aborted: Unbalanced closing bracket found at pos %zu\n",
                 parse_err.error_loc);
+        free(toks.items);
+        free(cmds.items);
         return -1;
     } else if (parse_err.status == UNBALANCED_LEFT) {
         fprintf(stderr,
                 "Aborted: Unbalanced opening bracket found at pos %zu\n",
                 parse_err.error_loc);
+        free(toks.items);
+        free(cmds.items);
         return -1;
     }
 
@@ -242,16 +247,20 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
         printf("------- Output start -------\n");
     }
 
-    int chars_printed = interpret_cmds(mem, &cmds);
+    run_result run_err = interpret_cmds(mem, &cmds);
 
     if (debug) { printf("\n------- Output end -------\n"); }
 
-    if (chars_printed < 0) {
-        fprintf(stderr, "Data pointer out of bounds!\n");
+    if (run_err.status == DATA_PTR_OOB) {
+        fprintf(stderr,
+                "Data pointer out of bounds! (from instruction at pos %zu)\n",
+                run_err.error_loc);
+        free(toks.items);
+        free(cmds.items);
         return -1;
     }
 
-    return chars_printed;
+    return run_err.chars_printed;
 }
 
 void do_repl(size_t bf_mem_size) {
@@ -385,8 +394,8 @@ int main(int argc, char **argv) {
         size_t inp_len = strlen(inp);
 
         int num_chars_printed = run_bf(inp_len, inp, &bf_mem, debug);
-        if (num_chars_printed < 0) { return num_chars_printed; }
-        return 0;
+        if (num_chars_printed < 0) return EXIT_FAILURE;
+        return EXIT_SUCCESS;
     }
 
     fprintf(stderr, "Provided arguments not recognised!\n\n");

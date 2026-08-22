@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `collapse_result` enum for repeated token logic.
 - Factored parsing logic into individual functions.
 - Cleaner error handling with `parse_result` struct.
+- Cleaner error handling with `run_result` struct.
 
 ### Fixed
 
