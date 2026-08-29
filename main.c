@@ -1,4 +1,3 @@
-#include <stddef.h>
 #define CLAP_IMPLEMENTATION
 #include "clap.h"
 #include <errno.h>
@@ -58,7 +57,7 @@ int make_token(const char c) {
     }
 }
 
-int tokenise(const char *input, const size_t inp_len, tok_type_arr *toks_out) {
+int tokenise(const char *input, size_t inp_len, tok_type_arr *toks_out) {
     for (size_t i = 0; i < inp_len; i++) {
         int tok_type = make_token(input[i]);
         if (tok_type >= 0) {
@@ -103,7 +102,7 @@ void collapse_repeated_toks(tok_type_arr *tok_types_in, tok_arr *toks_out) {
 
         bool curr_tok_collapsed = false;
         while (!curr_tok_collapsed) {
-            if (tok_type_scanner++ >= tok_types_in->count) { break; }
+            if (++tok_type_scanner >= tok_types_in->count) { break; }
 
             collapse_result can_collapse = can_collapse_toks(
                 curr_tok_type, tok_types_in->items[tok_type_scanner]);
@@ -263,29 +262,32 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
     return run_err.chars_printed;
 }
 
-void do_repl(size_t bf_mem_size) {
-    printf("cbf: a simple interactive brainfuck interpreter\n"
-           "(memory tape %zu x 1 byte cells)\n"
-           "Type `exit` or CTRL-D to exit\n",
-           bf_mem_size);
+void do_repl(size_t bf_mem_size, FILE *in_stream, FILE *out_stream) {
+    fprintf(in_stream,
+            "cbf: a simple interactive brainfuck interpreter\n"
+            "(memory tape %zu x 1 byte cells)\n"
+            "Type `exit` or CTRL-D to exit\n",
+            bf_mem_size);
 
     memory bf_mem = {calloc(bf_mem_size, 1), (int)bf_mem_size, 0};
 
     char line[200];
     for (;;) {
-        printf("bf> ");
+        fprintf(out_stream, "bf> ");
 
-        fflush(stdout);
-        const char *line_err = fgets(line, sizeof(line), stdin);
+        fflush(out_stream);
+        const char *line_err = fgets(line, sizeof(line), in_stream);
         if (line_err == NULL || strcmp(line, "exit\n") == 0) {
-            if (feof(stdin)) { putchar('\n'); }
+            if (feof(in_stream)) { putc('\n', out_stream); }
             break;
         }
 
         int num_chars_printed = run_bf(strlen(line), line, &bf_mem, 0);
 
-        if (num_chars_printed != 0) { putchar('\n'); }
+        if (num_chars_printed != 0) { putc('\n', out_stream); }
     }
+
+    free(bf_mem.cells);
 }
 
 /* Helper function that reads the entirety of the
@@ -368,7 +370,7 @@ int main(int argc, char **argv) {
     }
 
     if (clap_has_flag(parsed, "repl")) {
-        do_repl(bf_mem_size);
+        do_repl(bf_mem_size, stdin, stdout);
         return EXIT_SUCCESS;
     }
 

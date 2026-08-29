@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- REPL can now specify input and output streams.
+
 ### Changed
 
 - Begin using `stdbool.h` for boolean values.
@@ -20,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `#undef MAKE_ARRAY_TYPE` after use.
 - Renamed parameters in `tokenise()`, `parse()` to make their purpose clearer.
+- Fixed bug caused by a post-increment that should have been a pre-incerement.
 
 ## [1.0.0] - 2026-07-22
 
