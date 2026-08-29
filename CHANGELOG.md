@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `#undef MAKE_ARRAY_TYPE` after use.
 - Renamed parameters in `tokenise()`, `parse()` to make their purpose clearer.
 - Fixed bug caused by a post-increment that should have been a pre-incerement.
+- Fixed data pointer out of bounds not being caught because of negative `numtimes`.
 
 ## [1.0.0] - 2026-07-22
 

@@ -28,8 +28,8 @@ MAKE_ARRAY_TYPE(token_type, tok_type_arr);
 typedef struct {
     token_type type;
     union {
-        size_t jumploc; // for jz, jnz
-        int numtimes;   // otherwise
+        size_t jumploc;  // for jz, jnz
+        size_t numtimes; // otherwise
     };
 } token;
 
@@ -39,8 +39,8 @@ MAKE_ARRAY_TYPE(token, tok_arr);
 
 typedef struct {
     unsigned char *cells;
-    int length;
-    int dataPtr;
+    size_t length;
+    size_t dataPtr;
 } memory;
 
 int make_token(const char c) {
@@ -94,6 +94,16 @@ collapse_result can_collapse_toks(token_type a, token_type b) {
     return a == b ? COLLAPSE_ADD : COLLAPSE_NONE;
 }
 
+void invert_tok(token_type *tt) {
+    switch (*tt) {
+    case DATA_INC: *tt = DATA_DEC; break;
+    case DATA_DEC: *tt = DATA_INC; break;
+    case DP_INC:   *tt = DP_DEC; break;
+    case DP_DEC:   *tt = DP_INC; break;
+    default:       break;
+    }
+}
+
 void collapse_repeated_toks(tok_type_arr *tok_types_in, tok_arr *toks_out) {
     int param_counter = 1;
     size_t tok_type_scanner = 0;
@@ -113,8 +123,12 @@ void collapse_repeated_toks(tok_type_arr *tok_types_in, tok_arr *toks_out) {
             case COLLAPSE_CANCEL: param_counter -= 1; break;
             }
         }
+        if (param_counter < 0) {
+            param_counter *= -1;
+            invert_tok(&curr_tok_type);
+        }
         toks_out->items[toks_out->count++] =
-            (token){curr_tok_type, {.numtimes = param_counter}};
+            (token){curr_tok_type, {.numtimes = (size_t)param_counter}};
         param_counter = 1;
     }
 }
@@ -185,7 +199,7 @@ run_result interpret_cmds(memory *mem, tok_arr *toks) {
         case DATA_DEC: mem->cells[mem->dataPtr] -= curr_tok.numtimes; break;
         case INPUT:    mem->cells[mem->dataPtr] = (unsigned char)getchar(); break;
         case OUTPUT:
-            for (int i = 0; i < curr_tok.numtimes; i++) {
+            for (size_t i = 0; i < curr_tok.numtimes; i++) {
                 putchar(mem->cells[mem->dataPtr]);
                 num_printed++;
             }
@@ -240,7 +254,7 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
         printf("------- Generated commands start -------\n");
         for (size_t i = 0; i < cmds.count; i++) {
             // numtimes isnt technically correct here...
-            printf("%d: %d\n", cmds.items[i].type, cmds.items[i].numtimes);
+            printf("%d: %zu\n", cmds.items[i].type, cmds.items[i].numtimes);
         }
         printf("------- Generated commands end -------\n");
         printf("------- Output start -------\n");
@@ -263,13 +277,13 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
 }
 
 void do_repl(size_t bf_mem_size, FILE *in_stream, FILE *out_stream) {
-    fprintf(in_stream,
+    fprintf(out_stream,
             "cbf: a simple interactive brainfuck interpreter\n"
             "(memory tape %zu x 1 byte cells)\n"
             "Type `exit` or CTRL-D to exit\n",
             bf_mem_size);
 
-    memory bf_mem = {calloc(bf_mem_size, 1), (int)bf_mem_size, 0};
+    memory bf_mem = {calloc(bf_mem_size, 1), bf_mem_size, 0};
 
     char line[200];
     for (;;) {
@@ -392,7 +406,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
 
-        memory bf_mem = {calloc(bf_mem_size, 1), (int)bf_mem_size, 0};
+        memory bf_mem = {calloc(bf_mem_size, 1), bf_mem_size, 0};
         size_t inp_len = strlen(inp);
 
         int num_chars_printed = run_bf(inp_len, inp, &bf_mem, debug);
