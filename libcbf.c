@@ -219,5 +219,7 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
         return -1;
     }
 
+    free(toks.items);
+    free(cmds.items);
     return run_err.chars_printed;
 }
