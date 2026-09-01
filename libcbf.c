@@ -127,7 +127,7 @@ run_result interpret_cmds(memory *mem, tok_arr *toks) {
         switch (curr_tok.type) {
         case DP_INC:
             mem->dataPtr += curr_tok.numtimes;
-            if (mem->dataPtr > mem->length) {
+            if (mem->dataPtr >= mem->length) {
                 return (run_result){DATA_PTR_OOB, cmd_ptr, num_printed};
             }
             break;
