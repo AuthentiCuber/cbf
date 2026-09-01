@@ -119,7 +119,8 @@ parse_result parse(tok_type_arr *tok_types_in, tok_arr *toks_out) {
     return resolve_jump_locs(toks_out);
 }
 
-run_result interpret_cmds(memory *mem, tok_arr *toks) {
+run_result interpret_cmds(memory *mem, tok_arr *toks, FILE *in_stream,
+                          FILE *out_stream) {
     size_t cmd_ptr = 0;
     size_t num_printed = 0;
     while (cmd_ptr < toks->count) {
@@ -140,10 +141,12 @@ run_result interpret_cmds(memory *mem, tok_arr *toks) {
             break;
         case DATA_INC: mem->cells[mem->dataPtr] += curr_tok.numtimes; break;
         case DATA_DEC: mem->cells[mem->dataPtr] -= curr_tok.numtimes; break;
-        case INPUT:    mem->cells[mem->dataPtr] = (unsigned char)getchar(); break;
+        case INPUT:
+            mem->cells[mem->dataPtr] = (unsigned char)getc(in_stream);
+            break;
         case OUTPUT:
             for (size_t i = 0; i < curr_tok.numtimes; i++) {
-                putchar(mem->cells[mem->dataPtr]);
+                putc(mem->cells[mem->dataPtr], out_stream);
                 num_printed++;
             }
             break;
@@ -203,7 +206,7 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
         printf("------- Output start -------\n");
     }
 
-    run_result run_err = interpret_cmds(mem, &cmds);
+    run_result run_err = interpret_cmds(mem, &cmds, stdin, stdout);
 
     if (debug) { printf("\n------- Output end -------\n"); }
 
