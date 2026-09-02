@@ -163,17 +163,18 @@ run_result interpret_cmds(memory *mem, tok_arr *toks, FILE *in_stream,
     return (run_result){RUN_SUCCESS, 0, num_printed};
 }
 
-int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
+int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
+           FILE *in_stream, FILE *out_stream, FILE *err_stream) {
     tok_type_arr toks = {calloc(inp_len, sizeof(token_type)), 0};
 
     tokenise(inp, inp_len, &toks);
 
     if (debug) {
-        printf("------- Generated tokens start -------\n");
+        fprintf(out_stream, "------- Generated tokens start -------\n");
         for (size_t i = 0; i < toks.count; i++) {
-            printf("%d ", toks.items[i]);
+            fprintf(out_stream, "%d ", toks.items[i]);
         }
-        printf("\n------- Generated tokens end -------\n");
+        fprintf(out_stream, "\n------- Generated tokens end -------\n");
     }
 
     tok_arr cmds = {calloc(toks.count, sizeof(token)), 0};
@@ -181,14 +182,14 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
     parse_result parse_err = parse(&toks, &cmds);
 
     if (parse_err.status == UNBALANCED_RIGHT) {
-        fprintf(stderr,
+        fprintf(err_stream,
                 "Aborted: Unbalanced closing bracket found at pos %zu\n",
                 parse_err.error_loc);
         free(toks.items);
         free(cmds.items);
         return -1;
     } else if (parse_err.status == UNBALANCED_LEFT) {
-        fprintf(stderr,
+        fprintf(err_stream,
                 "Aborted: Unbalanced opening bracket found at pos %zu\n",
                 parse_err.error_loc);
         free(toks.items);
@@ -197,21 +198,22 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug) {
     }
 
     if (debug) {
-        printf("------- Generated commands start -------\n");
+        fprintf(out_stream, "------- Generated commands start -------\n");
         for (size_t i = 0; i < cmds.count; i++) {
             // numtimes isnt technically correct here...
-            printf("%d: %zu\n", cmds.items[i].type, cmds.items[i].numtimes);
+            fprintf(out_stream, "%d: %zu\n", cmds.items[i].type,
+                    cmds.items[i].numtimes);
         }
-        printf("------- Generated commands end -------\n");
-        printf("------- Output start -------\n");
+        fprintf(out_stream, "------- Generated commands end -------\n");
+        fprintf(out_stream, "------- Output start -------\n");
     }
 
-    run_result run_err = interpret_cmds(mem, &cmds, stdin, stdout);
+    run_result run_err = interpret_cmds(mem, &cmds, in_stream, out_stream);
 
-    if (debug) { printf("\n------- Output end -------\n"); }
+    if (debug) { fprintf(out_stream, "\n------- Output end -------\n"); }
 
     if (run_err.status == DATA_PTR_OOB) {
-        fprintf(stderr,
+        fprintf(err_stream,
                 "Data pointer out of bounds! (from instruction at pos %zu)\n",
                 run_err.error_loc);
         free(toks.items);

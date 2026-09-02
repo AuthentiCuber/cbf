@@ -23,7 +23,8 @@ void do_repl(size_t bf_mem_size, FILE *in_stream, FILE *out_stream) {
             break;
         }
 
-        int num_chars_printed = run_bf(strlen(line), line, &bf_mem, 0);
+        int num_chars_printed = run_bf(strlen(line), line, &bf_mem, 0,
+                                       in_stream, out_stream, out_stream);
 
         if (num_chars_printed != 0) { putc('\n', out_stream); }
     }
@@ -136,7 +137,8 @@ int main(int argc, char **argv) {
         memory bf_mem = {calloc(bf_mem_size, 1), bf_mem_size, 0};
         size_t inp_len = strlen(inp);
 
-        int num_chars_printed = run_bf(inp_len, inp, &bf_mem, debug);
+        int num_chars_printed =
+            run_bf(inp_len, inp, &bf_mem, debug, stdin, stdout, stderr);
         if (num_chars_printed < 0) return EXIT_FAILURE;
         return EXIT_SUCCESS;
     }

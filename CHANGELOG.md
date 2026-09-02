@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - REPL can now specify input and output streams.
 - `interpret_cmds` can now specify input and output streams.
+- `run_bf` can now specify input, output and error streams.
 
 ### Changed
 

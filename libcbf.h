@@ -69,4 +69,5 @@ parse_result parse(tok_type_arr *tok_types_in, tok_arr *toks_out);
 run_result interpret_cmds(memory *mem, tok_arr *toks, FILE *in_stream,
                           FILE *out_stream);
 
-int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug);
+int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
+           FILE *in_stream, FILE *out_stream, FILE *err_stream);
