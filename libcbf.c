@@ -142,7 +142,7 @@ run_result interpret_cmds(memory *mem, tok_arr *toks, FILE *in_stream,
         case DATA_INC: mem->cells[mem->dataPtr] += curr_tok.numtimes; break;
         case DATA_DEC: mem->cells[mem->dataPtr] -= curr_tok.numtimes; break;
         case INPUT:
-            mem->cells[mem->dataPtr] = (unsigned char)getc(in_stream);
+            mem->cells[mem->dataPtr] = (unsigned char)fgetc(in_stream);
             break;
         case OUTPUT:
             for (size_t i = 0; i < curr_tok.numtimes; i++) {
@@ -172,7 +172,7 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
     if (debug) {
         fprintf(out_stream, "------- Generated tokens start -------\n");
         for (size_t i = 0; i < toks.count; i++) {
-            fprintf(out_stream, "%d ", toks.items[i]);
+            fprintf(out_stream, "%c ", toks.items[i]);
         }
         fprintf(out_stream, "\n------- Generated tokens end -------\n");
     }
@@ -200,8 +200,7 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
     if (debug) {
         fprintf(out_stream, "------- Generated commands start -------\n");
         for (size_t i = 0; i < cmds.count; i++) {
-            // numtimes isnt technically correct here...
-            fprintf(out_stream, "%d: %zu\n", cmds.items[i].type,
+            fprintf(out_stream, "%c : %zu\n", cmds.items[i].type,
                     cmds.items[i].numtimes);
         }
         fprintf(out_stream, "------- Generated commands end -------\n");
@@ -210,7 +209,11 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
 
     run_result run_err = interpret_cmds(mem, &cmds, in_stream, out_stream);
 
-    if (debug) { fprintf(out_stream, "\n------- Output end -------\n"); }
+    if (debug) {
+        fprintf(out_stream,
+                "\n------- Output end (%zu characters printed) -------\n",
+                run_err.chars_printed);
+    }
 
     if (run_err.status == DATA_PTR_OOB) {
         fprintf(err_stream,

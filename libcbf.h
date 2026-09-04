@@ -9,14 +9,14 @@
     } name
 
 typedef enum {
-    DP_INC,
-    DP_DEC,
-    DATA_INC,
-    DATA_DEC,
-    INPUT,
-    OUTPUT,
-    JZ,
-    JNZ
+    DP_INC = '>',
+    DP_DEC = '<',
+    DATA_INC = '+',
+    DATA_DEC = '-',
+    INPUT = ',',
+    OUTPUT = '.',
+    JZ = '[',
+    JNZ = ']'
 } token_type;
 
 MAKE_ARRAY_TYPE(token_type, tok_type_arr);
