@@ -23,10 +23,7 @@ MAKE_ARRAY_TYPE(token_type, tok_type_arr);
 
 typedef struct {
     token_type type;
-    union {
-        size_t jumploc;  // for jz, jnz
-        size_t numtimes; // otherwise
-    };
+    size_t param;
 } token;
 
 MAKE_ARRAY_TYPE(token, tok_arr);

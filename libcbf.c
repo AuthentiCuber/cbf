@@ -60,16 +60,16 @@ collapse_result can_collapse_toks(token_type a, token_type b) {
 
 void collapse_repeated_toks(tok_type_arr *tok_types_in, tok_arr *toks_out) {
     int param_counter = 1;
-    size_t tok_type_scanner = 0;
-    while (tok_type_scanner < tok_types_in->count) {
-        token_type curr_tok_type = tok_types_in->items[tok_type_scanner];
+    size_t tok_type_idx = 0;
+    while (tok_type_idx < tok_types_in->count) {
+        token_type curr_tok_type = tok_types_in->items[tok_type_idx];
 
         bool curr_tok_collapsed = false;
         while (!curr_tok_collapsed) {
-            if (++tok_type_scanner >= tok_types_in->count) { break; }
+            if (++tok_type_idx >= tok_types_in->count) { break; }
 
             collapse_result can_collapse = can_collapse_toks(
-                curr_tok_type, tok_types_in->items[tok_type_scanner]);
+                curr_tok_type, tok_types_in->items[tok_type_idx]);
 
             switch (can_collapse) {
             case COLLAPSE_NONE:   curr_tok_collapsed = true; break;
@@ -82,7 +82,7 @@ void collapse_repeated_toks(tok_type_arr *tok_types_in, tok_arr *toks_out) {
             invert_tok(&curr_tok_type);
         }
         toks_out->items[toks_out->count++] =
-            (token){curr_tok_type, {.numtimes = (size_t)param_counter}};
+            (token){curr_tok_type, (size_t)param_counter};
         param_counter = 1;
     }
 }
@@ -100,8 +100,8 @@ parse_result resolve_jump_locs(tok_arr *toks) {
             }
 
             size_t jump_pos = jump_idx_stack[--jump_idx_stack_head];
-            toks->items[tok_idx].jumploc = jump_pos;
-            toks->items[jump_pos].jumploc = tok_idx;
+            toks->items[tok_idx].param = jump_pos;
+            toks->items[jump_pos].param = tok_idx;
             break;
         default: break;
         }
@@ -121,46 +121,46 @@ parse_result parse(tok_type_arr *tok_types_in, tok_arr *toks_out) {
 
 run_result interpret_cmds(memory *mem, tok_arr *toks, FILE *in_stream,
                           FILE *out_stream) {
-    size_t cmd_ptr = 0;
-    size_t num_printed = 0;
-    while (cmd_ptr < toks->count) {
-        token curr_tok = toks->items[cmd_ptr];
+    size_t cmd_idx = 0;
+    size_t num_chars_printed = 0;
+    while (cmd_idx < toks->count) {
+        token curr_tok = toks->items[cmd_idx];
         switch (curr_tok.type) {
         case DP_INC:
-            mem->dataPtr += curr_tok.numtimes;
+            mem->dataPtr += curr_tok.param;
             if (mem->dataPtr >= mem->length) {
-                return (run_result){DATA_PTR_OOB, cmd_ptr, num_printed};
+                return (run_result){DATA_PTR_OOB, cmd_idx, num_chars_printed};
             }
             break;
         case DP_DEC:
             // unsigned ints, cannot check for < 0 after decrement
-            if (mem->dataPtr < curr_tok.numtimes) {
-                return (run_result){DATA_PTR_OOB, cmd_ptr, num_printed};
+            if (mem->dataPtr < curr_tok.param) {
+                return (run_result){DATA_PTR_OOB, cmd_idx, num_chars_printed};
             }
-            mem->dataPtr -= curr_tok.numtimes;
+            mem->dataPtr -= curr_tok.param;
             break;
-        case DATA_INC: mem->cells[mem->dataPtr] += curr_tok.numtimes; break;
-        case DATA_DEC: mem->cells[mem->dataPtr] -= curr_tok.numtimes; break;
+        case DATA_INC: mem->cells[mem->dataPtr] += curr_tok.param; break;
+        case DATA_DEC: mem->cells[mem->dataPtr] -= curr_tok.param; break;
         case INPUT:
             mem->cells[mem->dataPtr] = (unsigned char)fgetc(in_stream);
             break;
         case OUTPUT:
-            for (size_t i = 0; i < curr_tok.numtimes; i++) {
+            for (size_t i = 0; i < curr_tok.param; i++) {
                 putc(mem->cells[mem->dataPtr], out_stream);
-                num_printed++;
+                num_chars_printed++;
             }
             break;
         case JZ:
-            if (mem->cells[mem->dataPtr] == 0) { cmd_ptr = curr_tok.jumploc; }
+            if (mem->cells[mem->dataPtr] == 0) { cmd_idx = curr_tok.param; }
             break;
         case JNZ:
-            if (mem->cells[mem->dataPtr] != 0) { cmd_ptr = curr_tok.jumploc; }
+            if (mem->cells[mem->dataPtr] != 0) { cmd_idx = curr_tok.param; }
             break;
         }
-        cmd_ptr++;
+        cmd_idx++;
     }
 
-    return (run_result){RUN_SUCCESS, 0, num_printed};
+    return (run_result){RUN_SUCCESS, 0, num_chars_printed};
 }
 
 int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
@@ -201,7 +201,7 @@ int run_bf(size_t inp_len, const char *inp, memory *mem, bool debug,
         fprintf(out_stream, "------- Generated commands start -------\n");
         for (size_t i = 0; i < cmds.count; i++) {
             fprintf(out_stream, "%c : %zu\n", cmds.items[i].type,
-                    cmds.items[i].numtimes);
+                    cmds.items[i].param);
         }
         fprintf(out_stream, "------- Generated commands end -------\n");
         fprintf(out_stream, "------- Output start -------\n");

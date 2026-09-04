@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cleaner error handling with `parse_result` struct.
 - Cleaner error handling with `run_result` struct.
 - Moved core logic into `libcbf.c`, `libcbf.h`.
+- Better debug info display.
 
 ### Fixed
 
